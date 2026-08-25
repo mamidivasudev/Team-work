@@ -1,0 +1,26 @@
+TEAM WORK FLOW TRACKER - STARTUP INSTRUCTIONS
+=============================================
+
+Because the project folder was moved, you must use the updated commands below.
+
+Open TWO separate terminal windows.
+
+TERMINAL 1 - BACKEND
+--------------------
+1. Ensure you are in the correct directory:
+   cd "D:\AI\work_flow_tracker\Team work"
+
+2. Start the FastAPI backend:
+   backend\venv\Scripts\python.exe -m uvicorn backend.main:app --reload
+
+
+TERMINAL 2 - FRONTEND
+---------------------
+1. Navigate to the frontend directory:
+   cd "D:\AI\work_flow_tracker\Team work\frontend"
+
+2. Start the React frontend:
+   npm run dev
+
+=============================================
+Access the application at: http://localhost:5173
