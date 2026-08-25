@@ -163,6 +163,20 @@ def login(credentials: dict, db: Session = Depends(get_db)):
     
     raise HTTPException(status_code=401, detail="Invalid credentials")
 
+@app.post("/api/reset-password")
+def reset_password(req: dict, db: Session = Depends(get_db)):
+    username = req.get("username")
+    if username == "admin":
+        raise HTTPException(status_code=400, detail="Cannot reset admin password via this method")
+    
+    user = db.query(models.User).filter(models.User.username == username).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    user.password = "1234567890"
+    db.commit()
+    return {"message": "Password successfully reset to 1234567890"}
+
 @app.put("/api/team/{user_id}")
 def update_team_member(user_id: int, user: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = crud.update_user(db, user_id, user)

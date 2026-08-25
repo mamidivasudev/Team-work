@@ -78,8 +78,13 @@ export const deleteTeamMember = async (id: number): Promise<void> => {
   await api.delete(`/team/${id}`);
 };
 
-export const loginUser = async (credentials: any): Promise<any> => {
+export const loginUser = async (credentials: any) => {
   const response = await api.post('/login', credentials);
+  return response.data;
+};
+
+export const resetPassword = async (username: string) => {
+  const response = await api.post('/reset-password', { username });
   return response.data;
 };
 

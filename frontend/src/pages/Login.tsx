@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { loginUser } from '../services/api';
+import { loginUser, resetPassword } from '../services/api';
 import { Eye, EyeOff } from 'lucide-react';
 
 const Login = ({ onLogin }: { onLogin: () => void }) => {
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('admin@123');
   const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -33,6 +34,11 @@ const Login = ({ onLogin }: { onLogin: () => void }) => {
         {error && (
           <div className="bg-red-50 text-red-600 p-3 rounded mb-4 text-sm text-center">
             {error}
+          </div>
+        )}
+        {successMsg && (
+          <div className="bg-green-50 text-green-600 p-3 rounded mb-4 text-sm text-center">
+            {successMsg}
           </div>
         )}
 
@@ -63,6 +69,28 @@ const Login = ({ onLogin }: { onLogin: () => void }) => {
                 onClick={() => setShowPassword(!showPassword)}
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+            <div className="text-right mt-1">
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!username) {
+                    setError('Please enter a username to reset the password');
+                    return;
+                  }
+                  try {
+                    const res = await resetPassword(username);
+                    setSuccessMsg(res.message);
+                    setError('');
+                  } catch (err: any) {
+                    setError(err.response?.data?.detail || 'Failed to reset password');
+                    setSuccessMsg('');
+                  }
+                }}
+                className="text-xs text-blue-600 hover:underline"
+              >
+                Reset Password
               </button>
             </div>
           </div>
