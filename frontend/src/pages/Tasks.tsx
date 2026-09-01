@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getTasks, updateTaskStatus, getProjects, createTask, deleteTask, getTeam, updateTask, updateProject } from '../services/api';
 import type { Task, Project, TeamMember } from '../types';
-import { Plus, Trash2, Edit2, ClipboardList, ChevronDown, X, Eye } from 'lucide-react';
+import { Plus, Trash2, Edit2, ClipboardList, ChevronDown, X, Eye, MessageSquare } from 'lucide-react';
 
 const priorityStyles: Record<string, string> = {
   LOW:      'bg-gray-100 text-gray-600',
@@ -34,14 +34,22 @@ const Tasks = () => {
     project_id: string,
     assignee_ids: number[],
     priority: string,
-    status: string
+    status: string,
+    task_type: string,
+    dev_status: string,
+    qa_status: string,
+    support_status: string
   }>({
     title: '',
     description: '',
     project_id: '',
     assignee_ids: [],
     priority: 'MEDIUM',
-    status: 'TODO'
+    status: 'TODO',
+    task_type: 'STANDARD',
+    dev_status: 'PENDING',
+    qa_status: 'PENDING',
+    support_status: 'PENDING'
   });
 
   const [showAssignee, setShowAssignee] = useState(true);
@@ -403,7 +411,7 @@ const Tasks = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-4 gap-3">
                 <div className="col-span-1">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Project</label>
                   <select
@@ -415,6 +423,18 @@ const Tasks = () => {
                   >
                     <option value="">Select project...</option>
                     {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+                <div className="col-span-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Task Type</label>
+                  <select
+                    value={taskForm.task_type}
+                    onChange={e => setTaskForm({ ...taskForm, task_type: e.target.value })}
+                    className="block w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-gray-50 disabled:text-gray-500"
+                    disabled={!isAdmin}
+                  >
+                    <option value="STANDARD">Standard Task</option>
+                    <option value="QA_OBSERVATION">QA Observation</option>
                   </select>
                 </div>
                 <div className="col-span-1">
@@ -446,6 +466,47 @@ const Tasks = () => {
                   </select>
                 </div>
               </div>
+
+              {taskForm.task_type === 'QA_OBSERVATION' && (
+                <div className="grid grid-cols-3 gap-3 bg-blue-50 p-3 rounded-lg border border-blue-100">
+                  <div className="col-span-1">
+                    <label className="block text-sm font-medium text-blue-800 mb-1">Dev Status</label>
+                    <select
+                      value={taskForm.dev_status}
+                      onChange={e => setTaskForm({ ...taskForm, dev_status: e.target.value })}
+                      className="block w-full border border-blue-200 rounded-lg p-2 text-sm outline-none"
+                    >
+                      <option value="PENDING">Pending</option>
+                      <option value="IN_PROGRESS">In Progress</option>
+                      <option value="DONE">Done</option>
+                    </select>
+                  </div>
+                  <div className="col-span-1">
+                    <label className="block text-sm font-medium text-blue-800 mb-1">QA Status</label>
+                    <select
+                      value={taskForm.qa_status}
+                      onChange={e => setTaskForm({ ...taskForm, qa_status: e.target.value })}
+                      className="block w-full border border-blue-200 rounded-lg p-2 text-sm outline-none"
+                    >
+                      <option value="PENDING">Pending</option>
+                      <option value="PASS">Pass</option>
+                      <option value="FAIL">Fail</option>
+                    </select>
+                  </div>
+                  <div className="col-span-1">
+                    <label className="block text-sm font-medium text-blue-800 mb-1">Support Status</label>
+                    <select
+                      value={taskForm.support_status}
+                      onChange={e => setTaskForm({ ...taskForm, support_status: e.target.value })}
+                      className="block w-full border border-blue-200 rounded-lg p-2 text-sm outline-none"
+                    >
+                      <option value="PENDING">Pending</option>
+                      <option value="PASS">Pass</option>
+                      <option value="FAIL">Fail</option>
+                    </select>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <div className="flex justify-between items-end mb-1">

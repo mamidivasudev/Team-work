@@ -62,8 +62,42 @@ class Task(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    # QA workflow fields
+    task_type = Column(String, default="STANDARD")
+    dev_status = Column(String, default="PENDING")
+    qa_status = Column(String, default="PENDING")
+    support_status = Column(String, default="PENDING")
+
     project = relationship("Project", back_populates="tasks")
     assignees = relationship("User", secondary=task_assignees, back_populates="tasks")
+    comments = relationship("TaskComment", back_populates="task", cascade="all, delete-orphan")
+    attachments = relationship("TaskAttachment", back_populates="task", cascade="all, delete-orphan")
+
+class TaskComment(Base):
+    __tablename__ = "task_comments"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, ForeignKey("tasks.id"))
+    user_id = Column(Integer, ForeignKey("users.id"))
+    content = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    task = relationship("Task", back_populates="comments")
+    user = relationship("User")
+
+class TaskAttachment(Base):
+    __tablename__ = "task_attachments"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, ForeignKey("tasks.id"))
+    filename = Column(String)
+    original_name = Column(String)
+    file_size = Column(Integer, nullable=True)
+    uploaded_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    task = relationship("Task", back_populates="attachments")
+    uploader = relationship("User", foreign_keys=[uploaded_by])
 
 class Activity(Base):
     __tablename__ = "activities"

@@ -55,8 +55,47 @@ export const createTask = async (data: Partial<Task>): Promise<Task> => {
   return response.data;
 };
 
-export const deleteTask = async (id: number): Promise<void> => {
+export const deleteTask = async (id: number) => {
   await api.delete(`/tasks/${id}`);
+};
+
+export const getTaskComments = async (taskId: number) => {
+  const response = await api.get(`/tasks/${taskId}/comments`);
+  return response.data;
+};
+
+export const addTaskComment = async (taskId: number, content: string, userId: number) => {
+  const response = await api.post(`/tasks/${taskId}/comments`, { content, user_id: userId });
+  return response.data;
+};
+
+export const saveObservation = async (title: string, content: string, project_id: number) => {
+  const response = await api.post('/observations/save', { title, content, project_id });
+  return response.data;
+};
+
+export const getObservationsList = async () => {
+  const response = await api.get('/observations');
+  return response.data;
+};
+
+export const getObservation = async (filename: string) => {
+  const response = await api.get(`/observations/${filename}`);
+  return response.data;
+};
+
+export const deleteObservationFile = async (filename: string) => {
+  const response = await api.delete(`/observations/${filename}`);
+  return response.data;
+};
+
+export const uploadObservationFile = async (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await api.post('/observations/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  return response.data;
 };
 
 export const getTeam = async (): Promise<TeamMember[]> => {

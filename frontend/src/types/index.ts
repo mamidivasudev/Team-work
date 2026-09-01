@@ -8,17 +8,31 @@ export interface Project {
   members?: TeamMember[];
 }
 
+export interface TaskComment {
+  id: number;
+  task_id: number;
+  user_id: number;
+  content: string;
+  created_at: string;
+  user?: TeamMember;
+}
+
 export interface Task {
   id: number;
   title: string;
   description: string;
   project_id: number;
-  assignee_ids: number[];
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  status: 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'COMPLETED' | 'BLOCKED';
+  due_date?: string;
   assignees?: TeamMember[];
-  priority: string;
-  status: string;
-  due_date: string | null;
-  created_at: string;
+  
+  // QA Fields
+  task_type?: string;
+  dev_status?: string;
+  qa_status?: string;
+  support_status?: string;
+  comments?: TaskComment[];
 }
 
 export interface TeamMember {

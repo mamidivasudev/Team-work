@@ -17,6 +17,34 @@ class User(UserBase):
     class Config:
         orm_mode = True
 
+class TaskCommentBase(BaseModel):
+    content: str
+
+class TaskCommentCreate(TaskCommentBase):
+    user_id: int
+
+class TaskComment(TaskCommentBase):
+    id: int
+    task_id: int
+    user_id: int
+    created_at: datetime
+    user: Optional[User] = None
+
+    class Config:
+        orm_mode = True
+
+class TaskAttachment(BaseModel):
+    id: int
+    task_id: int
+    filename: str
+    original_name: str
+    file_size: Optional[int] = None
+    uploaded_by: Optional[int] = None
+    created_at: datetime
+
+    class Config:
+        orm_mode = True
+
 class TaskBase(BaseModel):
     title: str
     description: Optional[str] = None
@@ -25,6 +53,10 @@ class TaskBase(BaseModel):
     due_date: Optional[datetime] = None
     assignee_ids: Optional[List[int]] = []
     project_id: int
+    task_type: str = "STANDARD"
+    dev_status: str = "PENDING"
+    qa_status: str = "PENDING"
+    support_status: str = "PENDING"
 
 class TaskCreate(TaskBase):
     pass
@@ -36,12 +68,17 @@ class TaskUpdate(BaseModel):
     status: Optional[str] = None
     due_date: Optional[datetime] = None
     assignee_ids: Optional[List[int]] = None
+    task_type: Optional[str] = None
+    dev_status: Optional[str] = None
+    qa_status: Optional[str] = None
+    support_status: Optional[str] = None
 
 class Task(TaskBase):
     id: int
     created_at: datetime
     updated_at: datetime
     assignees: List[User] = []
+    comments: List[TaskComment] = []
 
     class Config:
         orm_mode = True

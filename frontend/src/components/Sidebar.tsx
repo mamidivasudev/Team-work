@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, FolderKanban, CheckSquare, Users, Activity, Settings } from 'lucide-react';
+import { LayoutDashboard, FolderKanban, CheckSquare, Users, Activity, Settings, FileText } from 'lucide-react';
 
 const Sidebar = () => {
   const isAdmin = localStorage.getItem('isAdmin') === 'true';
@@ -11,6 +11,7 @@ const Sidebar = () => {
     { name: 'Projects', path: '/projects', icon: FolderKanban },
     { name: 'Tasks', path: '/tasks', icon: CheckSquare },
     { name: 'Activity', path: '/activity', icon: Activity },
+    { name: 'Add Observations', path: '/observations', icon: FileText },
   ];
 
   if (isAdmin) {
@@ -24,9 +25,7 @@ const Sidebar = () => {
       <div className="h-16 flex items-center px-6 border-b shrink-0">
         <div className="flex flex-col justify-center">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-xs">TW</span>
-            </div>
+            <img src="/teamwork.png" alt="Team Work Logo" className="w-7 h-7 object-contain" />
             <h1 className="text-lg font-bold text-gray-800 leading-tight">Team Work</h1>
           </div>
           <span className="text-[10px] text-gray-500 font-medium ml-11 -mt-0.5">know your work status.....</span>

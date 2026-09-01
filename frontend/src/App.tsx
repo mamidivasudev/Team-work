@@ -8,6 +8,7 @@ import Team from './pages/Team';
 import Activity from './pages/Activity';
 import Login from './pages/Login';
 import Settings from './pages/Settings';
+import Observations from './pages/Observations';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -33,6 +34,7 @@ function App() {
           <Route path="/projects" element={<Projects />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/activity" element={<Activity />} />
+          <Route path="/observations" element={<Observations />} />
           
           {/* Admin only routes */}
           {isAdmin && (

@@ -119,6 +119,20 @@ def delete_task(db: Session, task_id: int):
         return True
     return False
 
+def get_task_comments(db: Session, task_id: int):
+    return db.query(models.TaskComment).filter(models.TaskComment.task_id == task_id).order_by(models.TaskComment.created_at.asc()).all()
+
+def create_task_comment(db: Session, task_id: int, comment: schemas.TaskCommentCreate):
+    db_comment = models.TaskComment(
+        task_id=task_id,
+        user_id=comment.user_id,
+        content=comment.content
+    )
+    db.add(db_comment)
+    db.commit()
+    db.refresh(db_comment)
+    return db_comment
+
 def get_users(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.User).offset(skip).limit(limit).all()
 

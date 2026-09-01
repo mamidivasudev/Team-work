@@ -119,6 +119,14 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Task not found")
     return {"detail": "Task deleted"}
 
+@app.get("/api/tasks/{task_id}/comments", response_model=List[schemas.TaskComment])
+def read_task_comments(task_id: int, db: Session = Depends(get_db)):
+    return crud.get_task_comments(db, task_id=task_id)
+
+@app.post("/api/tasks/{task_id}/comments", response_model=schemas.TaskComment)
+def create_task_comment(task_id: int, comment: schemas.TaskCommentCreate, db: Session = Depends(get_db)):
+    return crud.create_task_comment(db=db, task_id=task_id, comment=comment)
+
 @app.get("/api/team")
 def get_team(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     users = crud.get_users(db, skip=skip, limit=limit)
@@ -199,3 +207,123 @@ def read_activities(skip: int = 0, limit: int = 100, db: Session = Depends(get_d
 def reset_activities(db: Session = Depends(get_db)):
     crud.clear_activities(db)
     return {"detail": "Activities cleared"}
+
+import os
+import re
+from datetime import datetime
+from pydantic import BaseModel
+
+class ObservationDoc(BaseModel):
+    title: str
+    content: str
+    project_id: int
+
+@app.post("/api/observations/save")
+def save_observation(doc: ObservationDoc, db: Session = Depends(get_db)):
+    # Ensure folder exists
+    folder_path = os.path.join(os.getcwd(), "saved_observations")
+    os.makedirs(folder_path, exist_ok=True)
+    
+    # Create safe filename with project ID (replacing old ones instead of appending timestamp)
+    safe_title = "".join([c for c in doc.title if c.isalnum() or c in (' ', '-', '_')]).rstrip()
+    filename = f"{safe_title}_proj{doc.project_id}.html" if safe_title else f"Observation_proj{doc.project_id}.html"
+    
+    file_path = os.path.join(folder_path, filename)
+    
+    with open(file_path, "w", encoding="utf-8") as f:
+        # Save as a basic HTML file so images and formatting remain intact
+        f.write(f"<html><head><title>{doc.title}</title><meta charset='utf-8'></head><body>\n")
+        f.write(f"<h1>{doc.title}</h1>\n")
+        f.write(doc.content)
+        f.write("\n</body></html>")
+        
+    # Extract Tags and Auto-Create Tasks
+    content = doc.content
+    import re
+    parts = re.split(r'<span[^>]*data-qa-obs="true"[^>]*>📌 (Observation \d+)</span>', content)
+    
+    tasks_created = 0
+    if len(parts) > 1:
+        for i in range(1, len(parts), 2):
+            obs_title = parts[i]
+            obs_html = parts[i+1].replace('<br/>', '').strip() if i+1 < len(parts) else ""
+            
+            if obs_title:
+                new_task = models.Task(
+                    title=f"{doc.title} - {obs_title}",
+                    description=obs_html,
+                    project_id=doc.project_id,
+                    priority="HIGH",
+                    status="TODO",
+                    task_type="QA_OBSERVATION",
+                    dev_status="PENDING",
+                    qa_status="PENDING",
+                    support_status="PENDING"
+                )
+                db.add(new_task)
+                tasks_created += 1
+        db.commit()
+        
+    return {"detail": "Saved successfully", "filename": filename, "tasks_created": tasks_created}
+
+@app.delete("/api/observations/{filename}")
+def delete_observation(filename: str):
+    folder_path = os.path.join(os.getcwd(), "saved_observations")
+    file_path = os.path.join(folder_path, filename)
+    if os.path.exists(file_path):
+        os.remove(file_path)
+        return {"detail": "File deleted"}
+    raise HTTPException(status_code=404, detail="File not found")
+
+from fastapi import File, UploadFile
+import mammoth
+import io
+
+@app.get("/api/observations")
+def list_observations():
+    folder_path = os.path.join(os.getcwd(), "saved_observations")
+    if not os.path.exists(folder_path):
+        return []
+    
+    files = []
+    for f in os.listdir(folder_path):
+        if f.endswith(".html"):
+            stat = os.stat(os.path.join(folder_path, f))
+            files.append({
+                "filename": f,
+                "created_at": datetime.fromtimestamp(stat.st_ctime).isoformat()
+            })
+    return sorted(files, key=lambda x: x["created_at"], reverse=True)
+
+@app.get("/api/observations/{filename}")
+def get_observation(filename: str):
+    folder_path = os.path.join(os.getcwd(), "saved_observations")
+    file_path = os.path.join(folder_path, filename)
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+        
+    with open(file_path, "r", encoding="utf-8") as f:
+        content = f.read()
+        
+    # Extract just the body content if it has html tags
+    import re
+    body_match = re.search(r'<body>(.*?)</body>', content, re.DOTALL | re.IGNORECASE)
+    if body_match:
+        content = body_match.group(1)
+        
+    return {"filename": filename, "content": content}
+
+@app.post("/api/observations/upload")
+async def upload_observation(file: UploadFile = File(...)):
+    content = ""
+    if file.filename.endswith('.docx'):
+        # Convert DOCX to HTML using mammoth
+        file_bytes = await file.read()
+        result = mammoth.convert_to_html(io.BytesIO(file_bytes))
+        content = result.value # The generated HTML
+    else:
+        # Assume it's text or HTML
+        file_bytes = await file.read()
+        content = file_bytes.decode('utf-8')
+        
+    return {"filename": file.filename, "content": content}
