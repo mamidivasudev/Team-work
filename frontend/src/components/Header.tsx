@@ -1,9 +1,34 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bell, Search, UserCircle, LogOut } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 
 const Header = () => {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [docTitle, setDocTitle] = useState('');
   const menuRef = useRef<HTMLDivElement>(null);
+  const location = useLocation();
+
+  useEffect(() => {
+    const handleUpdate = (e: any) => setDocTitle(e.detail);
+    window.addEventListener('update-header-title', handleUpdate);
+    return () => window.removeEventListener('update-header-title', handleUpdate);
+  }, []);
+
+  const getPageTitle = () => {
+    if (location.pathname === '/observations' && docTitle && docTitle !== 'New Observation Document') {
+      return docTitle;
+    }
+    switch (location.pathname) {
+      case '/': return 'Dashboard';
+      case '/projects': return 'Projects';
+      case '/tasks': return 'Tasks';
+      case '/activity': return 'Activity';
+      case '/observations': return 'Add Observations';
+      case '/team': return 'Team';
+      case '/settings': return 'Settings';
+      default: return 'Team Work';
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -26,14 +51,9 @@ const Header = () => {
   };
 
   return (
-    <header className="h-16 bg-white border-b flex items-center justify-between px-6">
-      <div className="flex items-center gap-2 bg-gray-100 px-3 py-1.5 rounded-md w-96">
-        <Search size={18} className="text-gray-400" />
-        <input 
-          type="text" 
-          placeholder="Search projects, tasks..." 
-          className="bg-transparent border-none outline-none text-sm w-full"
-        />
+    <header className="h-16 bg-white border-b flex items-center justify-between px-6 shrink-0 z-10 relative">
+      <div className="flex items-center">
+        <h1 className="text-xl font-bold text-gray-800 tracking-tight">{getPageTitle()}</h1>
       </div>
       <div className="flex items-center gap-4 relative">
         <button className="text-gray-500 hover:text-gray-700">

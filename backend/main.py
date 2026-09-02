@@ -240,7 +240,7 @@ def save_observation(doc: ObservationDoc, db: Session = Depends(get_db)):
     # Extract Tags and Auto-Create Tasks
     content = doc.content
     import re
-    parts = re.split(r'<span[^>]*data-qa-obs="true"[^>]*>📌 (Observation \d+)</span>', content)
+    parts = re.split(r'<[^>]*>📌\s*(Observation\s*\d+)</[^>]*>', content)
     
     tasks_created = 0
     if len(parts) > 1:

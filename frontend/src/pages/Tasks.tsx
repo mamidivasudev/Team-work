@@ -17,7 +17,10 @@ const statusStyles: Record<string, string> = {
   COMPLETED:   'bg-green-100 text-green-700',
 };
 
+import { useNavigate } from 'react-router-dom';
+
 const Tasks = () => {
+  const navigate = useNavigate();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -107,7 +110,11 @@ const Tasks = () => {
       project_id: task.project_id.toString(),
       assignee_ids: task.assignees ? task.assignees.map(a => a.id) : [],
       priority: task.priority,
-      status: task.status
+      status: task.status,
+      task_type: task.task_type || 'STANDARD',
+      dev_status: task.dev_status || 'PENDING',
+      qa_status: task.qa_status || 'PENDING',
+      support_status: task.support_status || 'PENDING'
     });
     setShowModal(true);
   };
@@ -301,44 +308,90 @@ const Tasks = () => {
                 filteredTasks.map(t => {
                   return (
                   <tr key={t.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-2">
-                      <div className="text-sm font-medium text-gray-900">{t.title}</div>
+                    <td className="px-4 py-2 cursor-pointer group" onClick={() => {
+                      if (t.task_type === 'QA_OBSERVATION') {
+                        const docTitle = t.title.split(' - Observation ')[0];
+                        const safeTitle = Array.from(docTitle).filter(c => /[a-zA-Z0-9 \-_]/.test(c)).join('').trimEnd();
+                        const filename = safeTitle ? `${safeTitle}_proj${t.project_id}.html` : `Observation_proj${t.project_id}.html`;
+                        navigate(`/observations?doc=${encodeURIComponent(filename)}`);
+                      } else {
+                        openEditModal(t);
+                      }
+                    }}>
+                      <div className="text-sm font-medium text-gray-900 group-hover:text-indigo-600 group-hover:underline flex items-center gap-1.5">
+                        {t.title}
+                      </div>
                       {t.description && (
-                        <div className="text-xs text-gray-400 mt-0.5 max-w-[200px] truncate">{t.description}</div>
+                        <div className="text-xs text-gray-400 mt-0.5 max-w-[200px] truncate">
+                          {t.task_type === 'QA_OBSERVATION' ? 'Click to view full document...' : t.description}
+                        </div>
                       )}
                     </td>
-                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{getProjectName(t.project_id)}</td>
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 cursor-pointer" onClick={() => openEditModal(t)}>{getProjectName(t.project_id)}</td>
                     {showAssignee && (
                       <td className="px-4 py-2 whitespace-nowrap text-sm">
-                        {t.assignees && t.assignees.length > 0 ? (
-                          <div className="flex -space-x-1.5">
-                            {t.assignees.slice(0, 3).map((a, idx) => {
-                              const colors = ['bg-blue-500', 'bg-red-500', 'bg-green-500', 'bg-yellow-500', 'bg-purple-500', 'bg-pink-500'];
-                              return (
-                                <div 
-                                  key={a.id} 
-                                  className={`h-6 w-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold border-2 border-white ${colors[idx % colors.length]}`}
-                                  title={a.name}
-                                >
-                                  {a.name.charAt(0).toUpperCase()}
-                                </div>
-                              );
-                            })}
-                            {t.assignees.length > 3 && (
-                              <div className="h-6 w-6 rounded-full flex items-center justify-center bg-gray-100 text-gray-500 text-[10px] font-bold border-2 border-white">
-                                +{t.assignees.length - 3}
-                              </div>
-                            )}
-                          </div>
+                        {isAdmin ? (
+                          <select
+                            value={t.assignees && t.assignees.length > 0 ? t.assignees[0].id.toString() : ""}
+                            onChange={(e) => {
+                              const selectedId = e.target.value;
+                              const newAssignees = selectedId ? [parseInt(selectedId)] : [];
+                              updateTask(t.id, { assignee_ids: newAssignees }).then(() => fetchTasks());
+                            }}
+                            className="bg-transparent border-0 text-sm font-medium text-gray-700 cursor-pointer outline-none hover:bg-gray-100 rounded px-2 py-1 max-w-[120px]"
+                          >
+                            <option value="">Unassigned</option>
+                            {(projects.find(p => p.id === t.project_id)?.members || []).map(m => (
+                              <option key={m.id} value={m.id}>{m.name}</option>
+                            ))}
+                          </select>
                         ) : (
-                          <span className="text-gray-400 text-xs italic">Unassigned</span>
+                          t.assignees && t.assignees.length > 0 ? (
+                            <div className="flex -space-x-1.5 cursor-pointer" onClick={() => openEditModal(t)}>
+                              {t.assignees.slice(0, 3).map((a, idx) => {
+                                const colors = ['bg-blue-500', 'bg-red-500', 'bg-green-500', 'bg-yellow-500', 'bg-purple-500', 'bg-pink-500'];
+                                return (
+                                  <div 
+                                    key={a.id} 
+                                    className={`h-6 w-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold border-2 border-white ${colors[idx % colors.length]}`}
+                                    title={a.name}
+                                  >
+                                    {a.name.charAt(0).toUpperCase()}
+                                  </div>
+                                );
+                              })}
+                              {t.assignees.length > 3 && (
+                                <div className="h-6 w-6 rounded-full flex items-center justify-center bg-gray-100 text-gray-500 text-[10px] font-bold border-2 border-white">
+                                  +{t.assignees.length - 3}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 text-xs italic cursor-pointer hover:text-gray-600" onClick={() => openEditModal(t)}>Unassigned</span>
+                          )
                         )}
                       </td>
                     )}
                     <td className="px-4 py-2 whitespace-nowrap">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${priorityStyles[t.priority] || 'bg-gray-100 text-gray-600'}`}>
-                        {t.priority}
-                      </span>
+                      {isAdmin ? (
+                        <select
+                          value={t.priority}
+                          onChange={(e) => {
+                            const newPriority = e.target.value;
+                            updateTask(t.id, { priority: newPriority }).then(() => fetchTasks());
+                          }}
+                          className={`border-0 rounded-full text-xs font-medium px-2 py-1 cursor-pointer outline-none ${priorityStyles[t.priority] || 'bg-gray-100 text-gray-600'}`}
+                        >
+                          <option value="LOW">LOW</option>
+                          <option value="MEDIUM">MEDIUM</option>
+                          <option value="HIGH">HIGH</option>
+                          <option value="CRITICAL">CRITICAL</option>
+                        </select>
+                      ) : (
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${priorityStyles[t.priority] || 'bg-gray-100 text-gray-600'}`}>
+                          {t.priority}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-2 whitespace-nowrap">
                       <select
@@ -401,14 +454,38 @@ const Tasks = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Description <span className="text-gray-400 font-normal">(optional)</span></label>
-                <textarea
-                  value={taskForm.description}
-                  onChange={e => setTaskForm({ ...taskForm, description: e.target.value })}
-                  className="block w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-gray-50 disabled:text-gray-500"
-                  rows={3}
-                  placeholder="Add more details..."
-                  disabled={!isAdmin}
-                />
+                {taskForm.task_type === 'QA_OBSERVATION' ? (
+                  <div className="relative">
+                    <div 
+                      className="block w-full border border-gray-300 rounded-lg p-3 text-sm bg-gray-50 max-h-80 overflow-y-auto prose prose-sm max-w-none text-gray-800"
+                      dangerouslySetInnerHTML={{ __html: taskForm.description }}
+                    />
+                    <div className="absolute top-2 right-2 text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-1 rounded shadow-sm opacity-80 pointer-events-none">
+                      From Document
+                    </div>
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        const docTitle = taskForm.title.split(' - Observation ')[0];
+                        const safeTitle = Array.from(docTitle).filter(c => /[a-zA-Z0-9 \-_]/.test(c)).join('').trimEnd();
+                        const filename = safeTitle ? `${safeTitle}_proj${taskForm.project_id}.html` : `Observation_proj${taskForm.project_id}.html`;
+                        navigate(`/observations?doc=${encodeURIComponent(filename)}`);
+                      }}
+                      className="mt-2 text-xs font-semibold text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1.5 rounded hover:bg-indigo-100 hover:text-indigo-700 transition flex items-center gap-1.5 shadow-sm"
+                    >
+                      <ClipboardList size={14} /> Open Full Source Document
+                    </button>
+                  </div>
+                ) : (
+                  <textarea
+                    value={taskForm.description}
+                    onChange={e => setTaskForm({ ...taskForm, description: e.target.value })}
+                    className="block w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-gray-50 disabled:text-gray-500"
+                    rows={4}
+                    placeholder="Add more details..."
+                    disabled={!isAdmin}
+                  />
+                )}
               </div>
 
               <div className="grid grid-cols-4 gap-3">
