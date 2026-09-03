@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Project, Task, TeamMember, Activity, DashboardData } from '../types';
+import type { Project, Task, TeamMember, Activity, DashboardData, Tag, TaskRelationship, TaskAttachment, ProjectReportRow, TeamWorkloadRow, SearchResults } from '../types';
 
 const API_URL = 'http://localhost:8000/api';
 
@@ -143,5 +143,80 @@ export const updateTask = async (taskId: number, data: Partial<Task>): Promise<T
 
 export const updateTaskStatus = async (taskId: number, status: string): Promise<Task> => {
   const response = await api.put(`/tasks/${taskId}`, { status });
+  return response.data;
+};
+
+export const getTaskActivity = async (taskId: number): Promise<Activity[]> => {
+  const response = await api.get(`/tasks/${taskId}/activity`);
+  return response.data;
+};
+
+export const getTags = async (): Promise<Tag[]> => {
+  const response = await api.get('/tags');
+  return response.data;
+};
+
+export const createTag = async (name: string, color?: string): Promise<Tag> => {
+  const response = await api.post('/tags', { name, color });
+  return response.data;
+};
+
+export const deleteTag = async (tagId: number): Promise<void> => {
+  await api.delete(`/tags/${tagId}`);
+};
+
+export const getTaskRelationships = async (taskId: number): Promise<TaskRelationship[]> => {
+  const response = await api.get(`/tasks/${taskId}/relationships`);
+  return response.data;
+};
+
+export const createTaskRelationship = async (taskId: number, relatedTaskId: number, relationshipType: string): Promise<TaskRelationship> => {
+  const response = await api.post(`/tasks/${taskId}/relationships`, { related_task_id: relatedTaskId, relationship_type: relationshipType });
+  return response.data;
+};
+
+export const deleteTaskRelationship = async (relationshipId: number): Promise<void> => {
+  await api.delete(`/task-relationships/${relationshipId}`);
+};
+
+export const getTaskAttachments = async (taskId: number): Promise<TaskAttachment[]> => {
+  const response = await api.get(`/tasks/${taskId}/attachments`);
+  return response.data;
+};
+
+export const uploadTaskAttachment = async (taskId: number, file: File): Promise<TaskAttachment> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await api.post(`/tasks/${taskId}/attachments`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  return response.data;
+};
+
+export const deleteTaskAttachment = async (attachmentId: number): Promise<void> => {
+  await api.delete(`/attachments/${attachmentId}`);
+};
+
+export const getAttachmentDownloadUrl = (attachmentId: number): string => {
+  return `${API_URL}/attachments/${attachmentId}/download`;
+};
+
+export const globalSearch = async (q: string): Promise<SearchResults> => {
+  const response = await api.get('/search', { params: { q } });
+  return response.data;
+};
+
+export const getProjectsReport = async (): Promise<ProjectReportRow[]> => {
+  const response = await api.get('/reports/projects');
+  return response.data;
+};
+
+export const getTeamWorkloadReport = async (): Promise<TeamWorkloadRow[]> => {
+  const response = await api.get('/reports/team-workload');
+  return response.data;
+};
+
+export const getOverdueReport = async (): Promise<Task[]> => {
+  const response = await api.get('/reports/overdue');
   return response.data;
 };

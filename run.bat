@@ -1,4 +1,4 @@
-﻿@echo off
+@echo off
 echo Starting Team Work Flow Tracker...
 
 :: Start Backend in a new window

@@ -5,6 +5,8 @@ from typing import List, Optional
 
 from . import models, schemas, crud
 from .database import engine, get_db
+from .dependencies import get_current_user_context
+from .routers import tags, relationships, attachments, search, reports
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -18,10 +20,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-def get_current_user_context(x_user_id: Optional[str] = Header(None), x_is_admin: Optional[str] = Header(None)):
-    user_id = int(x_user_id) if x_user_id and x_user_id != "null" else None
-    is_admin = x_is_admin == "true"
-    return {"user_id": user_id, "is_admin": is_admin}
+app.include_router(tags.router)
+app.include_router(relationships.router)
+app.include_router(attachments.router)
+app.include_router(search.router)
+app.include_router(reports.router)
 
 @app.get("/api/dashboard")
 def get_dashboard(db: Session = Depends(get_db), context: dict = Depends(get_current_user_context)):
@@ -38,6 +41,9 @@ def get_dashboard(db: Session = Depends(get_db), context: dict = Depends(get_cur
     completed_tasks = sum(1 for t in tasks if t.status == "COMPLETED")
     in_progress_tasks = sum(1 for t in tasks if t.status == "IN_PROGRESS")
     blocked_tasks = sum(1 for t in tasks if t.status == "BLOCKED")
+    review_tasks = sum(1 for t in tasks if t.status == "REVIEW")
+    now = datetime.utcnow()
+    overdue_tasks = sum(1 for t in tasks if t.due_date and t.due_date < now and t.status != "COMPLETED")
 
     return {
         "projects_summary": {
@@ -49,7 +55,9 @@ def get_dashboard(db: Session = Depends(get_db), context: dict = Depends(get_cur
             "total": total_tasks,
             "completed": completed_tasks,
             "in_progress": in_progress_tasks,
-            "blocked": blocked_tasks
+            "blocked": blocked_tasks,
+            "review": review_tasks,
+            "overdue": overdue_tasks
         },
         "recent_activities": activities,
         "project_progress": [
@@ -118,6 +126,12 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
     if not success:
         raise HTTPException(status_code=404, detail="Task not found")
     return {"detail": "Task deleted"}
+
+@app.get("/api/tasks/{task_id}/activity", response_model=List[schemas.Activity])
+def read_task_activity(task_id: int, db: Session = Depends(get_db)):
+    if not crud.get_task(db, task_id):
+        raise HTTPException(status_code=404, detail="Task not found")
+    return crud.get_task_activity(db, task_id=task_id)
 
 @app.get("/api/tasks/{task_id}/comments", response_model=List[schemas.TaskComment])
 def read_task_comments(task_id: int, db: Session = Depends(get_db)):
@@ -258,7 +272,8 @@ def save_observation(doc: ObservationDoc, db: Session = Depends(get_db)):
                     task_type="QA_OBSERVATION",
                     dev_status="PENDING",
                     qa_status="PENDING",
-                    support_status="PENDING"
+                    support_status="PENDING",
+                    qa_document_filename=filename
                 )
                 db.add(new_task)
                 tasks_created += 1
@@ -266,10 +281,17 @@ def save_observation(doc: ObservationDoc, db: Session = Depends(get_db)):
         
     return {"detail": "Saved successfully", "filename": filename, "tasks_created": tasks_created}
 
+def _resolve_observation_path(filename: str) -> str:
+    folder_path = os.path.abspath(os.path.join(os.getcwd(), "saved_observations"))
+    safe_name = os.path.basename(filename)
+    file_path = os.path.abspath(os.path.join(folder_path, safe_name))
+    if os.path.commonpath([folder_path, file_path]) != folder_path:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    return file_path
+
 @app.delete("/api/observations/{filename}")
 def delete_observation(filename: str):
-    folder_path = os.path.join(os.getcwd(), "saved_observations")
-    file_path = os.path.join(folder_path, filename)
+    file_path = _resolve_observation_path(filename)
     if os.path.exists(file_path):
         os.remove(file_path)
         return {"detail": "File deleted"}
@@ -297,8 +319,7 @@ def list_observations():
 
 @app.get("/api/observations/{filename}")
 def get_observation(filename: str):
-    folder_path = os.path.join(os.getcwd(), "saved_observations")
-    file_path = os.path.join(folder_path, filename)
+    file_path = _resolve_observation_path(filename)
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File not found")
         

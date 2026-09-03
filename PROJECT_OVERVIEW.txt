@@ -1,0 +1,42 @@
+﻿# Team Work - Project Overview
+
+## 1. What is this project for?
+"Team Work" is a full-stack, comprehensive Workflow and QA Tracking application designed to bridge the gap between Quality Assurance reporting and Developer task management. 
+
+Its flagship feature solves a major pain point for QA teams: Instead of manually creating individual Jira/Trello tickets for dozens of bugs found in a massive MS Word test report, QA engineers can upload their document directly into the app, click a button to "pin" specific bugs, and the app automatically parses the document and extracts those pins into trackable, assignable development tasks.
+
+## 2. Core Features & Capabilities
+
+### QA Observation Engine (The Magic Feature)
+* Docx Uploads: Uses mammoth.js to ingest and convert Microsoft Word documents into rich HTML preserving images, lists, and formatting.
+* Auto-Task Extraction: QA can click a "📌" button inside the editor to tag bugs. Pressing "Save & Extract" uses smart regex on the Python backend to slice the document and instantly generate a separate Task ticket for every single tag.
+* Deep Linking: Auto-generated QA tasks feature a "View in Document" button (and clicking the title in the table). This instantly transports the developer back to the exact source document to read the full context of the bug with all original images/formatting.
+
+### Advanced Task Management
+* Dual Task Types: Tasks are either "STANDARD" or "QA_OBSERVATION".
+* QA Workflow: Observation tasks include specialized workflow dropdowns that standard tasks don't have: Dev Status, QA Status, and Support Status.
+* Inline Editing: The Tasks table allows for blazing-fast workflow management. You can change a task's priority or re-assign it to a different team member using dropdowns directly inside the table rows, without ever opening an edit menu.
+
+### Project & Team Management
+* Role-Based Access: Built-in authentication supporting Admins and standard Users.
+* Project Silos: Tasks and Observations are strictly tied to specific projects. 
+* Live Dashboard: Provides a bird's-eye view of project progress, total blocked tasks, and a timeline of recent team activity.
+
+## 3. How it Works (Technical Stack)
+
+### Frontend (User Interface)
+* Framework: React 18 built with Vite and TypeScript for fast, strictly-typed UI components.
+* Styling: Tailwind CSS for rapid, modern, highly-compact UI styling, combined with lucide-react for beautiful, lightweight icons.
+* State Management: React hooks handle local state, while cross-component communication is handled via lightweight DOM CustomEvents.
+* Routing: react-router-dom for navigating between Dashboard, Tasks, Observations, Settings, etc.
+
+### Backend (Server & Database)
+* Framework: FastAPI (Python) for blazing-fast, asynchronous API endpoints.
+* Database: SQLite (teamtrack.db) accessed via SQLAlchemy (ORM).
+* Processing: Python handles the heavy lifting of parsing the raw HTML observation documents, executing regex to split the document by pins, and inserting the tasks into the SQLite database.
+
+## 4. How to Run It
+1. Backend: Navigate to the ackend folder, activate the virtual environment, and run uvicorn main:app --reload.
+2. Frontend: Navigate to the rontend folder and run 
+pm run dev.
+(Note: There is also a convenient un.bat file in the root directory that boots both up simultaneously for Windows users).

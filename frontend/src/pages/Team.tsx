@@ -93,8 +93,8 @@ const Team = () => {
 
   const filteredTeam = selectedProjectId === 'all'
     ? team
-    : team.filter(m => 
-        m.task_project_ids?.includes(parseInt(selectedProjectId)) || 
+    : team.filter(m =>
+        m.task_project_ids?.includes(parseInt(selectedProjectId)) ||
         m.project_ids?.includes(parseInt(selectedProjectId))
       );
 
@@ -103,10 +103,13 @@ const Team = () => {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Team</h1>
+        <div>
+          <h1 className="page-title">Team</h1>
+          <p className="page-subtitle">{filteredTeam.length} member{filteredTeam.length !== 1 ? 's' : ''}</p>
+        </div>
         <div className="flex gap-2">
           <select
-            className="border rounded-lg px-3 py-2 bg-white text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none"
+            className="input bg-white w-auto"
             value={selectedProjectId}
             onChange={(e) => setSelectedProjectId(e.target.value)}
           >
@@ -115,74 +118,71 @@ const Team = () => {
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>
-          <button
-            onClick={openCreateModal}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-colors text-sm font-medium"
-          >
+          <button onClick={openCreateModal} className="btn-primary whitespace-nowrap">
             <Plus size={16} /> Add Team Member
           </button>
         </div>
       </div>
 
       {filteredTeam.length === 0 ? (
-        <div className="bg-white rounded-xl border shadow-sm p-12 text-center text-gray-400">
-          <Users size={40} className="mx-auto mb-3 text-gray-300" />
+        <div className="card p-12 text-center text-slate-400">
+          <Users size={40} className="mx-auto mb-3 text-slate-300" />
           <p className="font-medium">No team members yet</p>
           <p className="text-sm mt-1">Add your first team member to get started.</p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-100">
-            <thead className="bg-gray-50">
+        <div className="card overflow-hidden">
+          <table className="min-w-full divide-y divide-slate-100">
+            <thead className="bg-slate-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Team Member</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Role</th>
-                {showCurrentTask && <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Current Task</th>}
-                {showAssigned && <th className="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Assigned</th>}
-                {showCompleted && <th className="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Completed</th>}
-                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
+                <th className="th">Team Member</th>
+                <th className="th">Role</th>
+                {showCurrentTask && <th className="th">Current Task</th>}
+                {showAssigned && <th className="th text-center">Assigned</th>}
+                {showCompleted && <th className="th text-center">Completed</th>}
+                <th className="th text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-100">
+            <tbody className="bg-white divide-y divide-slate-100">
               {filteredTeam.map((m, idx) => (
-                <tr key={m.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap">
+                <tr key={m.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-4 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-3">
                       <div className={`flex-shrink-0 h-9 w-9 ${avatarColors[idx % avatarColors.length]} rounded-full flex items-center justify-center text-white font-bold text-sm`}>
                         {m.name.charAt(0).toUpperCase()}
                       </div>
                       <div>
-                        <div className="text-sm font-semibold text-gray-900">{m.name}</div>
-                        {m.username && <div className="text-xs text-gray-400">@{m.username}</div>}
+                        <div className="text-sm font-semibold text-slate-900">{m.name}</div>
+                        {m.username && <div className="text-xs text-slate-400">@{m.username}</div>}
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="px-2 py-1 rounded-md bg-gray-100 text-gray-700 text-xs font-medium">{m.role}</span>
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <span className="badge bg-slate-100 text-slate-700">{m.role}</span>
                   </td>
                   {showCurrentTask && (
-                    <td className="px-6 py-4 text-sm text-gray-600 max-w-[200px]">
+                    <td className="px-4 py-4 text-sm text-slate-600 max-w-[200px]">
                       <span className="truncate block" title={m.current_task}>
-                        {m.current_task || <span className="text-gray-300 italic text-xs">None</span>}
+                        {m.current_task || <span className="text-slate-300 italic text-xs">None</span>}
                       </span>
                     </td>
                   )}
                   {showAssigned && (
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-50 text-blue-700 text-xs font-bold">
+                    <td className="px-4 py-4 whitespace-nowrap text-center">
+                      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-indigo-50 text-indigo-700 text-xs font-bold">
                         {m.assigned_tasks}
                       </span>
                     </td>
                   )}
                   {showCompleted && (
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <td className="px-4 py-4 whitespace-nowrap text-center">
                       <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-green-50 text-green-700 text-xs font-bold">
                         {m.completed_tasks}
                       </span>
                     </td>
                   )}
-                  <td className="px-6 py-4 whitespace-nowrap text-right">
-                    <button onClick={() => openEditModal(m)} className="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg mr-1 transition-colors" title="Edit"><Edit2 size={15} /></button>
+                  <td className="px-4 py-4 whitespace-nowrap text-right">
+                    <button onClick={() => openEditModal(m)} className="text-indigo-500 hover:bg-indigo-50 p-1.5 rounded-lg mr-1 transition-colors" title="Edit"><Edit2 size={15} /></button>
                     <button onClick={() => handleDeleteClick(m)} className="text-red-400 hover:bg-red-50 p-1.5 rounded-lg transition-colors" title="Delete"><Trash2 size={15} /></button>
                   </td>
                 </tr>
@@ -195,34 +195,34 @@ const Team = () => {
       {/* Add/Edit Member Modal */}
       {showModal && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-y-auto"
+          className="modal-overlay overflow-y-auto"
           onClick={() => setShowModal(false)}
         >
           <div
-            className="bg-white p-6 rounded-xl shadow-xl w-full max-w-lg my-8"
+            className="modal-panel p-6 max-w-lg my-8"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-xl font-bold mb-5 text-gray-800">{editingMemberId ? 'Edit Team Member' : 'Add Team Member'}</h2>
+            <h2 className="text-xl font-bold mb-5 text-slate-900">{editingMemberId ? 'Edit Team Member' : 'Add Team Member'}</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                <label className="label">Full Name</label>
                 <input
                   type="text"
                   value={memberForm.name}
                   onChange={e => setMemberForm({ ...memberForm, name: e.target.value })}
-                  className="block w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  className="input"
                   placeholder="e.g. John Smith"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                <label className="label">Role</label>
                 <input
                   type="text"
                   list="software-roles"
                   value={memberForm.role}
                   onChange={e => setMemberForm({ ...memberForm, role: e.target.value })}
-                  className="block w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  className="input"
                   required
                   placeholder="Search or select a role..."
                   autoComplete="off"
@@ -252,32 +252,32 @@ const Team = () => {
                 </datalist>
               </div>
 
-              <div className="pt-3 border-t">
-                <h3 className="text-sm font-semibold text-gray-700 mb-3">Login Credentials <span className="text-gray-400 font-normal">(optional)</span></h3>
+              <div className="pt-3 border-t border-slate-100">
+                <h3 className="text-sm font-semibold text-slate-700 mb-3">Login Credentials <span className="text-slate-400 font-normal">(optional)</span></h3>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Username</label>
+                    <label className="text-xs font-medium text-slate-600 mb-1 block">Username</label>
                     <input
                       type="text"
                       value={memberForm.username || ''}
                       onChange={e => setMemberForm({ ...memberForm, username: e.target.value })}
-                      className="block w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="input"
                       placeholder="username"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Password</label>
+                    <label className="text-xs font-medium text-slate-600 mb-1 block">Password</label>
                     <div className="relative">
                       <input
                         type={showPassword ? 'text' : 'password'}
                         value={memberForm.password || ''}
                         onChange={e => setMemberForm({ ...memberForm, password: e.target.value })}
-                        className="block w-full border border-gray-300 rounded-lg p-2.5 text-sm pr-9 focus:ring-2 focus:ring-blue-500 outline-none"
+                        className="input pr-9"
                         placeholder={editingMemberId ? '(unchanged)' : 'password'}
                       />
                       <button
                         type="button"
-                        className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-400 hover:text-gray-600"
+                        className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600"
                         onClick={() => setShowPassword(!showPassword)}
                       >
                         {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
@@ -288,8 +288,8 @@ const Team = () => {
               </div>
 
               <div className="flex justify-end gap-3 mt-6">
-                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 border rounded-lg text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 font-medium">
+                <button type="button" onClick={() => setShowModal(false)} className="btn-secondary">Cancel</button>
+                <button type="submit" className="btn-primary">
                   {editingMemberId ? 'Save Changes' : 'Add Member'}
                 </button>
               </div>
@@ -301,29 +301,29 @@ const Team = () => {
       {/* Reassign Tasks Modal */}
       {memberToDelete && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          className="modal-overlay"
           onClick={() => setMemberToDelete(null)}
         >
           <div
-            className="bg-white p-6 rounded-xl shadow-xl w-full max-w-md"
+            className="modal-panel p-6 max-w-md"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 bg-red-100 rounded-lg">
                 <Trash2 size={20} className="text-red-600" />
               </div>
-              <h2 className="text-xl font-bold text-gray-800">Reassign Tasks Before Deleting</h2>
+              <h2 className="text-xl font-bold text-slate-900">Reassign Tasks Before Deleting</h2>
             </div>
-            <p className="text-gray-600 text-sm mb-4">
+            <p className="text-slate-600 text-sm mb-4">
               <strong>{memberToDelete.name}</strong> has <strong>{memberToDelete.assigned_tasks}</strong> active tasks.
               Please reassign them before deleting this member.
             </p>
 
-            <label className="block text-sm font-medium text-gray-700 mb-1">Reassign tasks to:</label>
+            <label className="label">Reassign tasks to:</label>
             <select
               value={reassignToId}
               onChange={e => setReassignToId(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg p-2.5 text-sm mb-5 focus:ring-2 focus:ring-blue-500 outline-none"
+              className="input mb-5"
             >
               <option value="">Leave Unassigned</option>
               {team.filter(m => m.id !== memberToDelete.id).map(m => (
@@ -332,8 +332,8 @@ const Team = () => {
             </select>
 
             <div className="flex justify-end gap-3">
-              <button onClick={() => setMemberToDelete(null)} className="px-4 py-2 border rounded-lg text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
-              <button onClick={confirmDeleteAndReassign} className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 font-medium">
+              <button onClick={() => setMemberToDelete(null)} className="btn-secondary">Cancel</button>
+              <button onClick={confirmDeleteAndReassign} className="btn bg-red-600 text-white hover:bg-red-700">
                 Reassign & Delete
               </button>
             </div>

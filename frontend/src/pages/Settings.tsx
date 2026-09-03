@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 
 type ToggleProps = {
   value: boolean;
@@ -8,7 +9,7 @@ type ToggleProps = {
 const Toggle = ({ value, onChange }: ToggleProps) => (
   <button
     onClick={onChange}
-    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${value ? 'bg-blue-600' : 'bg-gray-200'}`}
+    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${value ? 'bg-indigo-600' : 'bg-slate-200'}`}
   >
     <span
       className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${value ? 'translate-x-6' : 'translate-x-1'}`}
@@ -24,10 +25,10 @@ type SettingRowProps = {
 };
 
 const SettingRow = ({ label, description, value, onChange }: SettingRowProps) => (
-  <div className="flex items-center justify-between py-4 border-b last:border-b-0">
+  <div className="flex items-center justify-between py-4 border-b border-slate-100 last:border-b-0">
     <div>
-      <p className="text-sm font-medium text-gray-800">{label}</p>
-      <p className="text-xs text-gray-500 mt-0.5">{description}</p>
+      <p className="text-sm font-medium text-slate-800">{label}</p>
+      <p className="text-xs text-slate-500 mt-0.5">{description}</p>
     </div>
     <Toggle value={value} onChange={onChange} />
   </div>
@@ -60,7 +61,7 @@ const Settings = () => {
         return;
       }
     }
-    
+
     const next = !value;
     setter(next);
     localStorage.setItem(key, next.toString());
@@ -92,19 +93,19 @@ const Settings = () => {
     <div>
       <div className="mb-6 flex justify-between items-end max-w-2xl">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Settings</h1>
-          <p className="text-sm text-gray-500 mt-1">Configure what information is visible across the app.</p>
+          <h1 className="page-title">Settings</h1>
+          <p className="page-subtitle">Configure what information is visible across the app.</p>
         </div>
         <div className="flex gap-3">
-          <button 
+          <button
             onClick={() => toggleAll(true)}
-            className="text-xs px-3 py-1.5 bg-blue-50 text-blue-600 font-medium rounded-lg hover:bg-blue-100 transition-colors"
+            className="text-xs px-3 py-1.5 bg-indigo-50 text-indigo-600 font-medium rounded-lg hover:bg-indigo-100 transition-colors"
           >
             Enable All
           </button>
-          <button 
+          <button
             onClick={() => toggleAll(false)}
-            className="text-xs px-3 py-1.5 bg-gray-100 text-gray-600 font-medium rounded-lg hover:bg-gray-200 transition-colors"
+            className="text-xs px-3 py-1.5 bg-slate-100 text-slate-600 font-medium rounded-lg hover:bg-slate-200 transition-colors"
           >
             Disable All
           </button>
@@ -112,10 +113,24 @@ const Settings = () => {
       </div>
 
       <div className="max-w-2xl space-y-6">
+        {/* Team Management */}
+        <div className="card overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-100 bg-slate-50">
+            <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Team Management</h2>
+          </div>
+          <div className="px-6 py-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-slate-800">Add, edit, or remove team members</p>
+              <p className="text-xs text-slate-500 mt-0.5">Manage names, roles, and login credentials.</p>
+            </div>
+            <Link to="/team" className="btn-secondary whitespace-nowrap">Manage Team</Link>
+          </div>
+        </div>
+
         {/* Team Visibility */}
-        <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b bg-gray-50">
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Team Page — Column Visibility</h2>
+        <div className="card overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-100 bg-slate-50">
+            <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Team Page — Column Visibility</h2>
           </div>
           <div className="px-6">
             <SettingRow
@@ -140,9 +155,9 @@ const Settings = () => {
         </div>
 
         {/* Tasks Visibility */}
-        <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b bg-gray-50">
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Tasks Page — Column Visibility</h2>
+        <div className="card overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-100 bg-slate-50">
+            <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Tasks Page — Column Visibility</h2>
           </div>
           <div className="px-6">
             <SettingRow
@@ -154,7 +169,7 @@ const Settings = () => {
           </div>
         </div>
 
-        <p className="text-xs text-gray-400 text-center">Changes are saved automatically and applied immediately.</p>
+        <p className="text-xs text-slate-400 text-center">Changes are saved automatically and applied immediately.</p>
       </div>
     </div>
   );
