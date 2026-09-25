@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquare, X, Send, Users } from 'lucide-react';
+import { MentionInput } from './MentionInput';
 
 const WS_BASE = 'ws://localhost:8000/ws/chat';
 const API_BASE = 'http://localhost:8000/api';
@@ -58,6 +59,16 @@ const FloatingChat = () => {
     }
   }, [open, messages]);
 
+  const renderMessageContent = (content: string) => {
+    const parts = content.split(/(@\w+)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith('@')) {
+        return <span key={i} className="text-indigo-600 font-bold bg-indigo-50 px-1 rounded">{part}</span>;
+      }
+      return part;
+    });
+  };
+
   const sendMessage = () => {
     if (!input.trim() || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
     wsRef.current.send(JSON.stringify({
@@ -102,7 +113,7 @@ const FloatingChat = () => {
                       <div className={`px-3 py-1.5 rounded-2xl text-xs ${
                         isMe ? 'bg-indigo-600 text-white rounded-br-sm' : 'bg-slate-100 text-slate-800 rounded-bl-sm'
                       }`}>
-                        {msg.content}
+                        {renderMessageContent(msg.content)}
                       </div>
                     </div>
                   </div>
@@ -114,24 +125,16 @@ const FloatingChat = () => {
 
           {/* Input */}
           <div className="px-3 py-2 border-t border-slate-100 shrink-0">
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && sendMessage()}
-                placeholder="Type a message..."
-                className="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100"
-                autoComplete="off"
-              />
-              <button
-                onClick={sendMessage}
-                disabled={!input.trim()}
-                className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white disabled:opacity-40 hover:bg-indigo-700 transition-colors shrink-0"
-              >
-                <Send size={13} />
-              </button>
-            </div>
+            <MentionInput
+              value={input}
+              onChange={setInput}
+              onSend={sendMessage}
+              placeholder="Type a message..."
+              inputClassName="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100"
+              buttonClassName="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white disabled:opacity-40 hover:bg-indigo-700 transition-colors shrink-0"
+              containerClassName="relative flex items-center gap-2"
+              iconSize={13}
+            />
           </div>
         </div>
       )}

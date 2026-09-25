@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { MessageSquare, Send, Users, FolderKanban, Hash, Wifi, WifiOff } from 'lucide-react';
 import { getProjects } from '../services/api';
 import type { Project } from '../types';
+import { MentionInput } from '../components/chat/MentionInput';
 
 const WS_BASE = 'ws://localhost:8000/ws/chat';
 const API_BASE = 'http://localhost:8000/api';
@@ -111,6 +112,16 @@ const Chat = () => {
     }));
     setInput('');
     inputRef.current?.focus();
+  };
+
+  const renderMessageContent = (content: string) => {
+    const parts = content.split(/(@\w+)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith('@')) {
+        return <span key={i} className="text-indigo-600 font-bold bg-indigo-50 px-1 rounded">{part}</span>;
+      }
+      return part;
+    });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -240,7 +251,7 @@ const Chat = () => {
                         ? 'bg-indigo-600 text-white rounded-br-sm'
                         : 'bg-slate-100 text-slate-800 rounded-bl-sm'
                     }`}>
-                      {msg.content}
+                      {renderMessageContent(msg.content)}
                     </div>
                     <p className="text-[10px] text-slate-400 mt-1 px-1">{formatTime(msg.created_at)}</p>
                   </div>
@@ -253,26 +264,17 @@ const Chat = () => {
 
         {/* Input */}
         <div className="px-4 py-3 border-t border-slate-100 bg-white shrink-0">
-          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-100 transition-all">
-            <input
-              ref={inputRef}
-              type="text"
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={`Message ${activeRoom === 'team' ? 'everyone' : ''}...`}
-              className="flex-1 bg-transparent text-sm text-slate-800 placeholder:text-slate-400 outline-none"
-              autoComplete="off"
-            />
-            <button
-              onClick={sendMessage}
-              disabled={!input.trim() || !connected}
-              className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-indigo-700 transition-colors shrink-0"
-            >
-              <Send size={14} />
-            </button>
-          </div>
-          <p className="text-[10px] text-slate-400 mt-1.5 px-1">Press Enter to send</p>
+          <MentionInput
+            value={input}
+            onChange={setInput}
+            onSend={sendMessage}
+            placeholder={`Message ${activeRoom === 'team' ? 'everyone' : ''}...`}
+            disabled={!connected}
+            inputClassName="flex-1 bg-transparent text-sm text-slate-800 placeholder:text-slate-400 outline-none"
+            buttonClassName="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-indigo-700 transition-colors shrink-0"
+            containerClassName="relative flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-100 transition-all"
+          />
+          <p className="text-[10px] text-slate-400 mt-1.5 px-1">Press Enter to send, type @ to tag</p>
         </div>
       </div>
     </div>
