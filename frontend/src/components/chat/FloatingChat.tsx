@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageSquare, X, Send, Users } from 'lucide-react';
+import { MessageSquare, X, Send, Users, Copy, Edit2, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { MentionInput } from './MentionInput';
+import { editChatMessage, deleteChatMessage } from '../../services/api';
 
 const WS_BASE = 'ws://localhost:8000/ws/chat';
 const API_BASE = 'http://localhost:8000/api';
@@ -27,6 +28,8 @@ const FloatingChat = () => {
   const [input, setInput] = useState('');
   const [connected, setConnected] = useState(false);
   const [unread, setUnread] = useState(0);
+  const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -43,12 +46,29 @@ const FloatingChat = () => {
     ws.onopen = () => setConnected(true);
     ws.onclose = () => setConnected(false);
     ws.onmessage = (e) => {
-      const msg: ChatMessage = JSON.parse(e.data);
-      setMessages(prev => {
-        if (prev.find(m => m.id === msg.id)) return prev;
-        return [...prev, msg];
-      });
-      if (!open) setUnread(u => u + 1);
+      const data = JSON.parse(e.data);
+      if (data.type) {
+        if (data.type === 'new') {
+           setMessages(prev => {
+             if (prev.find(m => m.id === data.message.id)) return prev;
+             return [...prev, data.message];
+           });
+           if (!open) setUnread(u => u + 1);
+        } else if (data.type === 'edit') {
+           setMessages(prev => prev.map(m => m.id === data.message.id ? data.message : m));
+        } else if (data.type === 'delete') {
+           setMessages(prev => prev.filter(m => m.id !== data.message_id));
+        } else if (data.type === 'clear') {
+           setMessages([]);
+        }
+      } else {
+        const msg: ChatMessage = data;
+        setMessages(prev => {
+          if (prev.find(m => m.id === msg.id)) return prev;
+          return [...prev, msg];
+        });
+        if (!open) setUnread(u => u + 1);
+      }
     };
     return () => ws.close();
   }, []);
@@ -86,8 +106,20 @@ const FloatingChat = () => {
     });
   };
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     if (!input.trim() || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+    
+    if (editingMessageId) {
+      try {
+        await editChatMessage(editingMessageId, input);
+        setEditingMessageId(null);
+        setInput('');
+      } catch (e) {
+        console.error("Failed to edit");
+      }
+      return;
+    }
+
     wsRef.current.send(JSON.stringify({
       sender_id: senderId || null,
       sender_name: senderName,
@@ -96,11 +128,30 @@ const FloatingChat = () => {
     setInput('');
   };
 
+  const handleCopy = (id: number, content: string) => {
+    navigator.clipboard.writeText(content);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleDelete = async (id: number) => {
+    if (window.confirm("Delete this message?")) {
+      try {
+        await deleteChatMessage(id);
+      } catch (e) {}
+    }
+  };
+
   return (
     <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-2">
       {/* Chat panel */}
       {open && (
-        <div className="w-80 h-96 bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-in slide-in-from-bottom-4">
+        <div className="w-80 h-96 bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 relative">
+          {copiedId !== null && (
+            <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] px-2.5 py-1 rounded-full shadow-lg z-10 animate-in fade-in slide-in-from-top-1">
+              Copied!
+            </div>
+          )}
           {/* Header */}
           <div className="flex items-center gap-2 px-4 py-3 bg-indigo-600 text-white shrink-0">
             <Users size={15} />
@@ -119,18 +170,29 @@ const FloatingChat = () => {
               messages.map((msg) => {
                 const isMe = msg.sender_name === senderName;
                 return (
-                  <div key={msg.id} className={`flex gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                  <div key={msg.id} className={`group flex gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
                     {!isMe && (
                       <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0 ${getAvatarColor(msg.sender_name)}`}>
                         {msg.sender_name.charAt(0).toUpperCase()}
                       </div>
                     )}
-                    <div className={`max-w-[75%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                    <div className={`max-w-[85%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
                       {!isMe && <p className="text-[10px] text-slate-500 mb-0.5 px-1">{msg.sender_name}</p>}
-                      <div className={`px-3 py-1.5 rounded-2xl text-xs ${
-                        isMe ? 'bg-indigo-600 text-white rounded-br-sm' : 'bg-slate-100 text-slate-800 rounded-bl-sm'
-                      }`}>
-                        {renderMessageContent(msg.content)}
+                      <div className={`flex items-center gap-1 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                        <div className={`px-3 py-1.5 rounded-2xl text-xs ${
+                          isMe ? 'bg-indigo-600 text-white rounded-br-sm' : 'bg-slate-100 text-slate-800 rounded-bl-sm'
+                        }`}>
+                          {renderMessageContent(msg.content)}
+                        </div>
+                        <div className={`opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 bg-white border border-slate-200 rounded shadow-sm p-0.5 shrink-0`}>
+                          <button onClick={() => handleCopy(msg.id, msg.content)} className="p-1 hover:bg-slate-100 rounded text-slate-500"><Copy size={10} /></button>
+                          {isMe && (
+                            <>
+                              <button onClick={() => { setEditingMessageId(msg.id); setInput(msg.content); }} className="p-1 hover:bg-slate-100 rounded text-slate-500"><Edit2 size={10} /></button>
+                              <button onClick={() => handleDelete(msg.id)} className="p-1 hover:bg-red-50 rounded text-red-500"><Trash2 size={10} /></button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -142,11 +204,17 @@ const FloatingChat = () => {
 
           {/* Input */}
           <div className="px-3 py-2 border-t border-slate-100 shrink-0">
+            {editingMessageId && (
+              <div className="flex items-center justify-between text-[10px] text-indigo-600 mb-1.5 px-1 bg-indigo-50 p-1 rounded">
+                <span>Editing...</span>
+                <button onClick={() => { setEditingMessageId(null); setInput(''); }} className="hover:text-indigo-800"><X size={12} /></button>
+              </div>
+            )}
             <MentionInput
               value={input}
               onChange={setInput}
               onSend={sendMessage}
-              placeholder="Type a message..."
+              placeholder={editingMessageId ? "Edit message..." : "Type a message..."}
               inputClassName="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100"
               buttonClassName="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white disabled:opacity-40 hover:bg-indigo-700 transition-colors shrink-0"
               containerClassName="relative flex items-center gap-2"

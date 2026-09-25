@@ -227,3 +227,6 @@ class ChatMessageOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+class ChatMessageEdit(BaseModel):
+    content: str

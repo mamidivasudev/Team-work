@@ -242,13 +242,30 @@ export const sendChatMessage = async (room: string, content: string, senderName:
 };
 
 export const deleteChatMessage = async (msgId: number) => {
-  await api.delete(`/chat/messages/${msgId}`);
+  const response = await api.delete(`/chat/messages/${msgId}`);
+  return response.data;
+};
+
+export const postChatMessage = async (data: { room: string, sender_id: number | null, sender_name: string, content: string }) => {
+  const response = await api.post(`/chat/messages`, data);
+  return response.data;
 };
 
 export const getChatRooms = async () => {
   const response = await api.get('/chat/rooms');
   return response.data;
 };
+
+export const clearChat = async (room: string = 'team') => {
+  const response = await api.delete('/chat/clear', { params: { room } });
+  return response.data;
+};
+
+export const editChatMessage = async (msgId: number, content: string) => {
+  const response = await api.put(`/chat/messages/${msgId}`, { content });
+  return response.data;
+};
+
 
 
 export const getRoles = async (): Promise<any[]> => {

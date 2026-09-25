@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import SettingsRoles from '../components/settings/SettingsRoles';
+import { clearChat } from '../services/api';
 
 type ToggleProps = {
   value: boolean;
@@ -242,6 +243,31 @@ const Settings = () => {
               <p className="text-xs text-slate-500 mt-0.5">Manage names, roles, and login credentials.</p>
             </div>
             <Link to="/team" className="btn-secondary whitespace-nowrap">Manage Team</Link>
+          </div>
+        </CollapsibleSection>
+
+        {/* Data Management */}
+        <CollapsibleSection title="Data Management">
+          <div className="px-6 py-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-slate-800">Clear Team Chat History</p>
+              <p className="text-xs text-slate-500 mt-0.5">Permanently delete all messages in the global Team Chat.</p>
+            </div>
+            <button 
+              onClick={async () => {
+                if (window.confirm('Are you sure you want to permanently delete all team chat history? This cannot be undone.')) {
+                  try {
+                    await clearChat('team');
+                    alert('Team chat history has been cleared.');
+                  } catch (e) {
+                    alert('Failed to clear chat.');
+                  }
+                }
+              }}
+              className="text-xs px-3 py-1.5 bg-red-50 text-red-600 font-medium rounded-lg hover:bg-red-100 transition-colors whitespace-nowrap"
+            >
+              Clear Chat
+            </button>
           </div>
         </CollapsibleSection>
 

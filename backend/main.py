@@ -515,12 +515,40 @@ def post_chat_message(msg: schemas.ChatMessageCreate, db: Session = Depends(get_
     return db_msg
 
 @app.delete("/api/chat/messages/{msg_id}")
-def delete_chat_message(msg_id: int, db: Session = Depends(get_db)):
+async def delete_chat_message(msg_id: int, db: Session = Depends(get_db)):
     msg = db.query(models.ChatMessage).filter(models.ChatMessage.id == msg_id).first()
     if msg:
+        room = msg.room
         db.delete(msg)
         db.commit()
+        await chat_manager.broadcast(room, {"type": "delete", "message_id": msg_id})
     return {"detail": "deleted"}
+
+@app.put("/api/chat/messages/{msg_id}")
+async def edit_chat_message(msg_id: int, payload: schemas.ChatMessageEdit, db: Session = Depends(get_db)):
+    msg = db.query(models.ChatMessage).filter(models.ChatMessage.id == msg_id).first()
+    if msg:
+        msg.content = payload.content
+        db.commit()
+        db.refresh(msg)
+        out = {
+            "id": msg.id,
+            "room": msg.room,
+            "sender_id": msg.sender_id,
+            "sender_name": msg.sender_name,
+            "content": msg.content,
+            "created_at": msg.created_at.isoformat()
+        }
+        await chat_manager.broadcast(msg.room, {"type": "edit", "message": out})
+        return out
+    raise HTTPException(status_code=404, detail="Message not found")
+
+@app.delete("/api/chat/clear")
+async def clear_chat(room: str = "team", db: Session = Depends(get_db)):
+    db.query(models.ChatMessage).filter(models.ChatMessage.room == room).delete()
+    db.commit()
+    await chat_manager.broadcast(room, {"type": "clear"})
+    return {"detail": "cleared"}
 
 @app.websocket("/ws/chat/{room}")
 async def websocket_chat(room: str, websocket: WebSocket, db: Session = Depends(get_db)):
@@ -548,7 +576,7 @@ async def websocket_chat(room: str, websocket: WebSocket, db: Session = Depends(
                 "content": db_msg.content,
                 "created_at": db_msg.created_at.isoformat()
             }
-            await chat_manager.broadcast(room, out)
+            await chat_manager.broadcast(room, {"type": "new", "message": out})
     except WebSocketDisconnect:
         chat_manager.disconnect(room, websocket)
 
