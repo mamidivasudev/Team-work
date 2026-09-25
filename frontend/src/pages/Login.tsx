@@ -17,6 +17,7 @@ const Login = ({ onLogin }: { onLogin: () => void }) => {
       localStorage.setItem('userName', data.name);
       localStorage.setItem('isAdmin', data.is_admin ? 'true' : 'false');
       localStorage.setItem('userId', data.user_id.toString());
+      localStorage.setItem('permissions', JSON.stringify(data.permissions || []));
       onLogin();
     } catch (err) {
       setError('Invalid username or password');

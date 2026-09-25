@@ -12,6 +12,8 @@ import Observations from './pages/Observations';
 import MyWork from './pages/MyWork';
 import TeamWork from './pages/TeamWork';
 import Reports from './pages/Reports';
+import Chat from './pages/Chat';
+import FloatingChat from './components/chat/FloatingChat';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -51,8 +53,10 @@ function App() {
             </>
           )}
 
+          <Route path="/chat" element={<Chat />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        {isAuthenticated && <FloatingChat />}
       </Layout>
     </Router>
   );

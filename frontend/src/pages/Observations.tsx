@@ -579,10 +579,11 @@ const Observations = () => {
                                 className="flex items-center justify-between px-2 py-1 hover:bg-slate-50 group"
                               >
                                 <button
-                                  className="flex-1 text-left px-2 py-1.5 text-sm truncate text-slate-700 hover:text-slate-900"
+                                  className="flex-1 flex items-center gap-2 text-left px-2 py-1.5 text-sm truncate text-slate-700 hover:text-slate-900"
                                   onClick={() => { loadDocument(doc.filename); setIsDocDropdownOpen(false); }}
                                 >
-                                  📄 {doc.filename.replace(/_proj\d+\.html$/, '').replace(/\.html$/, '')}
+                                  <FileText size={14} className="text-slate-400 shrink-0" />
+                                  <span className="truncate">{doc.filename.replace(/_proj\d+\.html$/, '').replace(/\.html$/, '')}</span>
                                 </button>
                                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity px-2">
                                   <button

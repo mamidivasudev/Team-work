@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { getTeam, getProjects, createTeamMember, deleteTeamMember, getTasks, updateTask, updateTeamMember } from '../services/api';
+﻿import React, { useEffect, useState } from 'react';
+import { getTeam, getProjects, createTeamMember, deleteTeamMember, getTasks, updateTask, updateTeamMember, getRoles } from '../services/api';
 import type { TeamMember, Project } from '../types';
 import { Plus, Trash2, Edit2, Eye, EyeOff, Users } from 'lucide-react';
 
@@ -11,7 +11,8 @@ const Team = () => {
 
   const [showModal, setShowModal] = useState(false);
   const [editingMemberId, setEditingMemberId] = useState<number | null>(null);
-  const [memberForm, setMemberForm] = useState({ name: '', role: '', username: '', password: '' });
+  const [memberForm, setMemberForm] = useState({ name: '', job_title: '', role_id: 3, username: '', password: '' });
+  const [availableRoles, setAvailableRoles] = useState<any[]>([]);
   const [showPassword, setShowPassword] = useState(false);
 
   // Reassignment Modal State
@@ -25,9 +26,9 @@ const Team = () => {
   useEffect(() => {
     getProjects().then(p => {
       setProjects(p);
-      if (p.length === 1) setSelectedProjectId(p[0].id.toString());
     });
     fetchTeam();
+    getRoles().then(setAvailableRoles).catch(console.error);
 
     const savedAssigned = localStorage.getItem('setting_showTeamAssigned');
     const savedCompleted = localStorage.getItem('setting_showTeamCompleted');
@@ -79,14 +80,14 @@ const Team = () => {
 
   const openCreateModal = () => {
     setEditingMemberId(null);
-    setMemberForm({ name: '', role: '', username: '', password: '' });
+    setMemberForm({ name: '', job_title: '', role_id: availableRoles.length ? availableRoles.find(r => r.name === "Team Member")?.id || 3 : 3, username: '', password: '' });
     setShowPassword(false);
     setShowModal(true);
   };
 
   const openEditModal = (member: any) => {
     setEditingMemberId(member.id);
-    setMemberForm({ name: member.name, role: member.role, username: member.username || '', password: '' });
+    setMemberForm({ name: member.name, job_title: member.job_title || member.role || '', role_id: member.role_id || 3, username: member.username || '', password: '' });
     setShowPassword(false);
     setShowModal(true);
   };
@@ -177,7 +178,7 @@ const Team = () => {
                   />
                 </th>
                 <th className="th">Team Member</th>
-                <th className="th">Role</th>
+                <th className="th">Role / Job Title</th>
                 {showCurrentTask && <th className="th">Current Task</th>}
                 {showAssigned && <th className="th text-center">Assigned</th>}
                 {showCompleted && <th className="th text-center">Completed</th>}
@@ -209,7 +210,7 @@ const Team = () => {
                     </div>
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap">
-                    <span className="badge bg-slate-100 text-slate-700">{m.role}</span>
+                    <span className="badge bg-slate-100 text-slate-700">{m.job_title || m.role}</span>
                   </td>
                   {showCurrentTask && (
                     <td className="px-4 py-4 text-sm text-slate-600 max-w-[200px]">
@@ -268,12 +269,25 @@ const Team = () => {
                 />
               </div>
               <div>
-                <label className="label">Role</label>
+                <label className="label">System Role</label>
+                <select
+                  value={memberForm.role_id}
+                  onChange={e => setMemberForm({ ...memberForm, role_id: parseInt(e.target.value) })}
+                  className="input bg-white mb-4"
+                  required
+                >
+                  {availableRoles.map(r => (
+                    <option key={r.id} value={r.id}>{r.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="label">Job Title</label>
                 <input
                   type="text"
                   list="software-roles"
-                  value={memberForm.role}
-                  onChange={e => setMemberForm({ ...memberForm, role: e.target.value })}
+                  value={memberForm.job_title}
+                  onChange={e => setMemberForm({ ...memberForm, job_title: e.target.value })}
                   className="input"
                   required
                   placeholder="Search or select a role..."
@@ -326,7 +340,7 @@ const Team = () => {
                         value={memberForm.password || ''}
                         onChange={e => setMemberForm({ ...memberForm, password: e.target.value })}
                         className="input pr-9"
-                        placeholder={editingMemberId ? '(unchanged)' : 'e.g. 123456'}
+                        placeholder={editingMemberId ? '(unchanged)' : 'e.g. 11111111'}
                         autoComplete="new-password"
                         data-lpignore="true"
                         data-1p-ignore="true"
@@ -400,3 +414,4 @@ const Team = () => {
   );
 };
 export default Team;
+

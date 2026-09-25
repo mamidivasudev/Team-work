@@ -1,3 +1,10 @@
+
+export interface Role {
+  id: number;
+  name: string;
+  permissions: string[];
+  is_system: boolean;
+}
 export interface Project {
   id: number;
   name: string;
@@ -79,7 +86,9 @@ export interface TeamMember {
   id: number;
   name: string;
   username?: string;
-  role: string;
+  job_title: string;
+  role_id: number | null;
+  role_permissions?: string[];
   current_task: string;
   assigned_tasks: number;
   completed_tasks: number;
@@ -117,7 +126,9 @@ export interface ProjectReportRow {
 export interface TeamWorkloadRow {
   id: number;
   name: string;
-  role: string;
+  job_title: string;
+  role_id: number | null;
+  role_permissions?: string[];
   open_tasks: number;
   completed_tasks: number;
   blocked_tasks: number;
@@ -127,4 +138,22 @@ export interface SearchResults {
   tasks: Task[];
   projects: Project[];
   team: TeamMember[];
+}
+
+export interface ChatMessage {
+  id: number;
+  room: string;
+  sender_id: number | null;
+  sender_name: string;
+  content: string;
+  created_at: string;
+}
+
+export interface ChatRoom {
+  id: string;
+  name: string;
+  type: string;
+  last_message?: string | null;
+  last_sender?: string | null;
+  last_time?: string | null;
 }

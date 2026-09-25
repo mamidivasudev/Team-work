@@ -2,9 +2,25 @@ from pydantic import BaseModel, computed_field
 from typing import Optional, List
 from datetime import datetime
 
+
+class RoleBase(BaseModel):
+    name: str
+    permissions: List[str]
+
+class RoleCreate(RoleBase):
+    pass
+
+class RoleOut(RoleBase):
+    id: int
+    is_system: bool
+
+    class Config:
+        from_attributes = True
+
 class UserBase(BaseModel):
     name: str
-    role: str
+    job_title: str
+    role_id: Optional[int] = None
     username: Optional[str] = None
 
 class UserCreate(UserBase):
@@ -15,7 +31,7 @@ class User(UserBase):
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class TaskCommentBase(BaseModel):
     content: str
@@ -31,7 +47,7 @@ class TaskComment(TaskCommentBase):
     user: Optional[User] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class TaskAttachment(BaseModel):
     id: int
@@ -43,7 +59,7 @@ class TaskAttachment(BaseModel):
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class TagBase(BaseModel):
     name: str
@@ -57,7 +73,7 @@ class Tag(TagBase):
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class TaskMini(BaseModel):
     id: int
@@ -66,7 +82,7 @@ class TaskMini(BaseModel):
     priority: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class TaskRelationshipCreate(BaseModel):
     related_task_id: int
@@ -82,7 +98,7 @@ class TaskRelationship(BaseModel):
     related_task: TaskMini
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class TaskBase(BaseModel):
     title: str
@@ -129,7 +145,7 @@ class Task(TaskBase):
         return [a.id for a in self.assignees]
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class ProjectBase(BaseModel):
     name: str
@@ -154,7 +170,7 @@ class Project(ProjectBase):
     members: List[User] = []
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class ActivityBase(BaseModel):
     action: str
@@ -170,7 +186,7 @@ class Activity(ActivityBase):
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class SearchResults(BaseModel):
     tasks: List[Task] = []
@@ -189,7 +205,25 @@ class ProjectReportRow(BaseModel):
 class TeamWorkloadRow(BaseModel):
     id: int
     name: str
-    role: str
+    job_title: str
+    role_id: Optional[int] = None
     open_tasks: int
     completed_tasks: int
     blocked_tasks: int
+
+class ChatMessageCreate(BaseModel):
+    room: str
+    sender_id: Optional[int] = None
+    sender_name: str
+    content: str
+
+class ChatMessageOut(BaseModel):
+    id: int
+    room: str
+    sender_id: Optional[int] = None
+    sender_name: str
+    content: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

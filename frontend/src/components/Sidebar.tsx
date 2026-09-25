@@ -1,11 +1,12 @@
 import { NavLink } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { LayoutDashboard, ListChecks, Users, FolderKanban, CheckSquare, FileText, BarChart3, Bell, Settings, UserCog } from 'lucide-react';
+import { LayoutDashboard, ListChecks, Users, FolderKanban, CheckSquare, FileText, BarChart3, Bell, Settings, UserCog, MessageSquare } from 'lucide-react';
 
 const NAV_KEYS: Record<string, string> = {
   'Dashboard':       'setting_nav_dashboard',
   'My Work':         'setting_nav_mywork',
   'Team Work':       'setting_nav_teamwork',
+  'Chat':            'setting_nav_chat',
   'Projects':        'setting_nav_projects',
   'Tasks':           'setting_nav_tasks',
   'QA Observations': 'setting_nav_qaobservations',
@@ -43,14 +44,23 @@ const Sidebar = () => {
     { name: 'Reports',         path: '/reports',       icon: BarChart3 },
     { name: 'Notifications',   path: '/notifications', icon: Bell },
     { name: 'Team Work',       path: '/team-work',     icon: Users },
+    { name: 'Chat',            path: '/chat',          icon: MessageSquare },
     { name: 'My Work',         path: '/my-work',       icon: ListChecks },
   ];
 
-  if (isAdmin) {
-    allNavItems = allNavItems.filter(item => item.name !== 'My Work');
-    allNavItems.push({ name: 'Settings', path: '/settings', icon: Settings });
-  } else {
+  let permissions: string[] = [];
+  try {
+    permissions = JSON.parse(localStorage.getItem('permissions') || '[]');
+  } catch(e) {}
+
+  if (!permissions.includes('manage_team')) {
     allNavItems = allNavItems.filter(item => item.name !== 'Team Members');
+  } else {
+    allNavItems = allNavItems.filter(item => item.name !== 'My Work');
+  }
+  
+  if (permissions.includes('manage_settings')) {
+    allNavItems.push({ name: 'Settings', path: '/settings', icon: Settings });
   }
 
   // Settings is always visible so admin can re-enable things

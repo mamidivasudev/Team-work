@@ -225,3 +225,42 @@ export const getOverdueReport = async (): Promise<Task[]> => {
   const response = await api.get('/reports/overdue');
   return response.data;
 };
+
+export const getChatMessages = async (room: string, limit = 100) => {
+  const response = await api.get(`/chat/messages`, { params: { room, limit } });
+  return response.data;
+};
+
+export const sendChatMessage = async (room: string, content: string, senderName: string, senderId?: number) => {
+  const response = await api.post(`/chat/messages`, { room, content, sender_name: senderName, sender_id: senderId || null });
+  return response.data;
+};
+
+export const deleteChatMessage = async (msgId: number) => {
+  await api.delete(`/chat/messages/${msgId}`);
+};
+
+export const getChatRooms = async () => {
+  const response = await api.get('/chat/rooms');
+  return response.data;
+};
+
+
+export const getRoles = async (): Promise<any[]> => {
+  const response = await api.get('/roles');
+  return response.data;
+};
+
+export const createRole = async (data: { name: string, permissions: string[] }): Promise<any> => {
+  const response = await api.post('/roles', data);
+  return response.data;
+};
+
+export const updateRole = async (id: number, data: { name: string, permissions: string[] }): Promise<any> => {
+  const response = await api.put(`/roles/${id}`, data);
+  return response.data;
+};
+
+export const deleteRole = async (id: number): Promise<void> => {
+  await api.delete(`/roles/${id}`);
+};

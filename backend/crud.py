@@ -182,9 +182,9 @@ def create_user(db: Session, user: schemas.UserCreate):
         
     password = user.password
     if not password:
-        password = "user@123"
+        password = "11111111"
         
-    db_user = models.User(name=user.name, role=user.role, username=username, password=password)
+    db_user = models.User(name=user.name, job_title=user.job_title, role_id=user.role_id, username=username, password=password)
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
@@ -194,7 +194,8 @@ def update_user(db: Session, user_id: int, user: schemas.UserCreate):
     db_user = get_user(db, user_id)
     if db_user:
         db_user.name = user.name
-        db_user.role = user.role
+        db_user.job_title = user.job_title
+        db_user.role_id = user.role_id
         db_user.username = user.username
         if user.password:
             db_user.password = user.password

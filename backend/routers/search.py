@@ -12,5 +12,5 @@ def search(q: str = "", db: Session = Depends(get_db), context: dict = Depends(g
     if len(q.strip()) < 2:
         return {"tasks": [], "projects": [], "team": []}
 
-    user_id = None if context["is_admin"] else context["user_id"]
+    user_id = None if "view_all_data" in context["permissions"] else context["user_id"]
     return crud.search_all(db, q.strip(), user_id=user_id)

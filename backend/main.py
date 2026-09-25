@@ -1,14 +1,70 @@
-from fastapi import FastAPI, Depends, HTTPException, Header
+from fastapi import FastAPI, Depends, HTTPException, Header, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List, Optional, Dict
+import json
 
 from . import models, schemas, crud
 from .database import engine, get_db
 from .dependencies import get_current_user_context
-from .routers import tags, relationships, attachments, search, reports
+from .routers import tags, relationships, attachments, search, reports, roles
 
 models.Base.metadata.create_all(bind=engine)
+
+# Seed roles and migrate users
+db = next(get_db())
+try:
+    if db.query(models.Role).count() == 0:
+        # Create default roles
+        admin_role = models.Role(name="Admin", permissions=["view_all_data", "manage_team", "manage_projects", "manage_tasks", "manage_settings", "manage_roles"], is_system=True)
+        tl_role = models.Role(name="Team Lead", permissions=["view_all_data", "manage_team", "manage_projects", "manage_tasks"], is_system=False)
+        tm_role = models.Role(name="Team Member", permissions=["manage_tasks"], is_system=False)
+        
+        db.add_all([admin_role, tl_role, tm_role])
+        db.commit()
+        db.refresh(admin_role)
+        db.refresh(tm_role)
+        
+        # Migrate existing users (if any)
+        users = db.query(models.User).all()
+        for user in users:
+            if user.id == 0 or user.name == "Admin":
+                user.role_id = admin_role.id
+            else:
+                user.role_id = tm_role.id
+        db.commit()
+except Exception as e:
+    print(f"Role migration error: {e}")
+finally:
+    db.close()
+
+
+class ChatManager:
+    def __init__(self):
+        self.rooms: Dict[str, List[WebSocket]] = {}
+
+    async def connect(self, room: str, websocket: WebSocket):
+        await websocket.accept()
+        if room not in self.rooms:
+            self.rooms[room] = []
+        self.rooms[room].append(websocket)
+
+    def disconnect(self, room: str, websocket: WebSocket):
+        if room in self.rooms:
+            self.rooms[room] = [ws for ws in self.rooms[room] if ws != websocket]
+
+    async def broadcast(self, room: str, message: dict):
+        if room in self.rooms:
+            dead = []
+            for ws in self.rooms[room]:
+                try:
+                    await ws.send_text(json.dumps(message))
+                except:
+                    dead.append(ws)
+            for ws in dead:
+                self.rooms[room].remove(ws)
+
+chat_manager = ChatManager()
 
 app = FastAPI(title="TeamTrack API")
 
@@ -25,10 +81,11 @@ app.include_router(relationships.router)
 app.include_router(attachments.router)
 app.include_router(search.router)
 app.include_router(reports.router)
+app.include_router(roles.router)
 
 @app.get("/api/dashboard")
 def get_dashboard(db: Session = Depends(get_db), context: dict = Depends(get_current_user_context)):
-    user_id = None if context["is_admin"] else context["user_id"]
+    user_id = None if "view_all_data" in context["permissions"] else context["user_id"]
     projects = crud.get_projects(db, user_id=user_id)
     tasks = crud.get_tasks(db, user_id=user_id)
     activities = crud.get_activities(db, limit=5)
@@ -75,7 +132,7 @@ def get_dashboard(db: Session = Depends(get_db), context: dict = Depends(get_cur
 
 @app.get("/api/projects", response_model=List[schemas.Project])
 def read_projects(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), context: dict = Depends(get_current_user_context)):
-    user_id = None if context["is_admin"] else context["user_id"]
+    user_id = None if "view_all_data" in context["permissions"] else context["user_id"]
     return crud.get_projects(db, skip=skip, limit=limit, user_id=user_id)
 
 @app.get("/api/projects/{project_id}", response_model=schemas.Project)
@@ -102,7 +159,7 @@ def delete_project(project_id: int, db: Session = Depends(get_db)):
 
 @app.get("/api/tasks", response_model=List[schemas.Task])
 def read_tasks(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), context: dict = Depends(get_current_user_context)):
-    user_id = None if context["is_admin"] else context["user_id"]
+    user_id = None if "view_all_data" in context["permissions"] else context["user_id"]
     return crud.get_tasks(db, skip=skip, limit=limit, user_id=user_id)
 
 @app.get("/api/tasks/{task_id}", response_model=schemas.Task)
@@ -155,7 +212,9 @@ def get_team(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
             "id": user.id,
             "name": user.name,
             "username": user.username,
-            "role": user.role,
+            "job_title": user.job_title,
+            "role": user.role.name if user.role else "Unknown",
+            "role_id": user.role_id,
             "current_task": current_task_title,
             "assigned_tasks": len(tasks),
             "completed_tasks": completed,
@@ -176,12 +235,30 @@ def login(credentials: dict, db: Session = Depends(get_db)):
     
     # Hardcoded admin check
     if username == "admin" and password == "admin@123":
-        return {"token": "authenticated", "name": "Admin", "is_admin": True, "user_id": 0}
+        return {
+            "token": "authenticated", 
+            "name": "Admin", 
+            "is_admin": True, 
+            "user_id": 0,
+            "permissions": ["view_all_data", "manage_team", "manage_projects", "manage_tasks", "manage_settings", "manage_roles"]
+        }
         
     # Check DB
     user = db.query(models.User).filter(models.User.username == username, models.User.password == password).first()
     if user:
-        return {"token": "authenticated", "name": user.name, "is_admin": False, "user_id": user.id}
+        permissions = []
+        if user.role_id:
+            role = db.query(models.Role).filter(models.Role.id == user.role_id).first()
+            if role and role.permissions:
+                permissions = role.permissions
+        return {
+            "token": "authenticated", 
+            "name": user.name, 
+            "is_admin": False, 
+            "user_id": user.id,
+            "permissions": permissions,
+            "job_title": user.job_title
+        }
     
     raise HTTPException(status_code=401, detail="Invalid credentials")
 
@@ -195,9 +272,9 @@ def reset_password(req: dict, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
         
-    user.password = "1234567890"
+    user.password = "11111111"
     db.commit()
-    return {"message": "Password successfully reset to 1234567890"}
+    return {"message": "Password successfully reset to 11111111"}
 
 @app.put("/api/team/{user_id}")
 def update_team_member(user_id: int, user: schemas.UserCreate, db: Session = Depends(get_db)):
@@ -394,3 +471,83 @@ async def upload_observation(file: UploadFile = File(...)):
         content = file_bytes.decode('utf-8')
         
     return {"filename": file.filename, "content": content}
+
+# ── Chat Endpoints ──────────────────────────────────────────
+
+@app.get("/api/chat/messages", response_model=List[schemas.ChatMessageOut])
+def get_chat_messages(room: str = "team", limit: int = 100, db: Session = Depends(get_db)):
+    msgs = db.query(models.ChatMessage).filter(
+        models.ChatMessage.room == room
+    ).order_by(models.ChatMessage.created_at.asc()).limit(limit).all()
+    return msgs
+
+@app.post("/api/chat/messages", response_model=schemas.ChatMessageOut)
+def post_chat_message(msg: schemas.ChatMessageCreate, db: Session = Depends(get_db)):
+    db_msg = models.ChatMessage(
+        room=msg.room,
+        sender_id=msg.sender_id,
+        sender_name=msg.sender_name,
+        content=msg.content
+    )
+    db.add(db_msg)
+    db.commit()
+    db.refresh(db_msg)
+    return db_msg
+
+@app.delete("/api/chat/messages/{msg_id}")
+def delete_chat_message(msg_id: int, db: Session = Depends(get_db)):
+    msg = db.query(models.ChatMessage).filter(models.ChatMessage.id == msg_id).first()
+    if msg:
+        db.delete(msg)
+        db.commit()
+    return {"detail": "deleted"}
+
+@app.websocket("/ws/chat/{room}")
+async def websocket_chat(room: str, websocket: WebSocket, db: Session = Depends(get_db)):
+    await chat_manager.connect(room, websocket)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            payload = json.loads(data)
+            # Save to DB
+            db_msg = models.ChatMessage(
+                room=room,
+                sender_id=payload.get("sender_id"),
+                sender_name=payload.get("sender_name", "Unknown"),
+                content=payload.get("content", "")
+            )
+            db.add(db_msg)
+            db.commit()
+            db.refresh(db_msg)
+            # Broadcast to all in room
+            out = {
+                "id": db_msg.id,
+                "room": db_msg.room,
+                "sender_id": db_msg.sender_id,
+                "sender_name": db_msg.sender_name,
+                "content": db_msg.content,
+                "created_at": db_msg.created_at.isoformat()
+            }
+            await chat_manager.broadcast(room, out)
+    except WebSocketDisconnect:
+        chat_manager.disconnect(room, websocket)
+
+@app.get("/api/chat/rooms")
+def get_chat_rooms(db: Session = Depends(get_db)):
+    """Return list of available chat rooms with last message preview"""
+    rooms = [
+        {"id": "team", "name": "Team Chat", "type": "team", "icon": "users"},
+    ]
+    # Add project rooms
+    projects = db.query(models.Project).all()
+    for p in projects:
+        rooms.append({"id": f"project-{p.id}", "name": p.name, "type": "project", "icon": "folder"})
+    # Add unread counts (last message per room)
+    for room in rooms:
+        last = db.query(models.ChatMessage).filter(
+            models.ChatMessage.room == room["id"]
+        ).order_by(models.ChatMessage.created_at.desc()).first()
+        room["last_message"] = last.content[:60] if last else None
+        room["last_sender"] = last.sender_name if last else None
+        room["last_time"] = last.created_at.isoformat() if last else None
+    return rooms

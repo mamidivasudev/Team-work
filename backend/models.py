@@ -27,6 +27,15 @@ task_tags = Table(
     Column("tag_id", Integer, ForeignKey("tags.id"), primary_key=True)
 )
 
+
+from sqlalchemy import JSON, Boolean
+class Role(Base):
+    __tablename__ = "roles"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, index=True)
+    permissions = Column(JSON)
+    is_system = Column(Boolean, default=False)
+
 class User(Base):
     __tablename__ = "users"
 
@@ -34,12 +43,14 @@ class User(Base):
     name = Column(String, index=True)
     username = Column(String, unique=True, index=True, nullable=True)
     password = Column(String, nullable=True)
-    role = Column(String)
+    job_title = Column("role", String)
+    role_id = Column(Integer, ForeignKey("roles.id"), nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     tasks = relationship("Task", secondary=task_assignees, back_populates="assignees")
     projects = relationship("Project", secondary=project_members, back_populates="members")
+    role = relationship("Role")
 
 class Project(Base):
     __tablename__ = "projects"
@@ -129,6 +140,15 @@ class TaskRelationship(Base):
 
     task = relationship("Task", foreign_keys=[task_id])
     related_task = relationship("Task", foreign_keys=[related_task_id])
+
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+    id = Column(Integer, primary_key=True, index=True)
+    room = Column(String, index=True)  # e.g. 'team', 'project-5', 'task-23'
+    sender_id = Column(Integer, nullable=True)  # 0 or None = admin
+    sender_name = Column(String)  # stored directly for speed
+    content = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 class Activity(Base):
     __tablename__ = "activities"

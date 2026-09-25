@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { ChevronDown, ChevronUp } from 'lucide-react';
+import SettingsRoles from '../components/settings/SettingsRoles';
 
 type ToggleProps = {
   value: boolean;
@@ -34,7 +36,36 @@ const SettingRow = ({ label, description, value, onChange }: SettingRowProps) =>
   </div>
 );
 
+
+type CollapsibleSectionProps = {
+  title: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+};
+
+const CollapsibleSection = ({ title, defaultOpen = false, children }: CollapsibleSectionProps) => {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  return (
+    <div className="card overflow-hidden mb-6 transition-all duration-200">
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between px-6 py-4 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer border-b border-slate-100"
+      >
+        <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">{title}</h2>
+        {isOpen ? <ChevronUp size={18} className="text-slate-400" /> : <ChevronDown size={18} className="text-slate-400" />}
+      </button>
+      {isOpen && (
+        <div className="px-6 py-2 animate-in slide-in-from-top-2 fade-in duration-200">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const Settings = () => {
+  const [activeTab, setActiveTab] = useState<"general" | "roles">("general");
   const [showAssigned, setShowAssigned] = useState(true);
   const [showCompleted, setShowCompleted] = useState(true);
   const [showCurrentTask, setShowCurrentTask] = useState(true);
@@ -170,33 +201,41 @@ const Settings = () => {
   };
   return (
     <div>
-      <div className="mb-6 flex justify-between items-end max-w-2xl">
-        <div>
-          <h1 className="page-title">Settings</h1>
-          <p className="page-subtitle">Configure what information is visible across the app.</p>
+      <div className="mb-6">
+        <div className="flex justify-between items-end max-w-2xl">
+          <div>
+            <h1 className="page-title">Settings</h1>
+            <p className="page-subtitle">Configure app visibility and team access levels.</p>
+          </div>
+          {activeTab === 'general' && (
+            <div className="flex gap-3">
+              <button onClick={() => toggleAll(true)} className="text-xs px-3 py-1.5 bg-indigo-50 text-indigo-600 font-medium rounded-lg hover:bg-indigo-100 transition-colors">Enable All</button>
+              <button onClick={() => toggleAll(false)} className="text-xs px-3 py-1.5 bg-slate-100 text-slate-600 font-medium rounded-lg hover:bg-slate-200 transition-colors">Disable All</button>
+            </div>
+          )}
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-4 mt-6 border-b border-slate-200">
           <button
-            onClick={() => toggleAll(true)}
-            className="text-xs px-3 py-1.5 bg-indigo-50 text-indigo-600 font-medium rounded-lg hover:bg-indigo-100 transition-colors"
+            onClick={() => setActiveTab('general')}
+            className={`pb-2 px-1 text-sm font-medium border-b-2 transition-colors ${activeTab === 'general' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
           >
-            Enable All
+            General Setup
           </button>
           <button
-            onClick={() => toggleAll(false)}
-            className="text-xs px-3 py-1.5 bg-slate-100 text-slate-600 font-medium rounded-lg hover:bg-slate-200 transition-colors"
+            onClick={() => setActiveTab('roles')}
+            className={`pb-2 px-1 text-sm font-medium border-b-2 transition-colors ${activeTab === 'roles' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
           >
-            Disable All
+            Roles & Permissions
           </button>
         </div>
       </div>
 
-      <div className="max-w-2xl space-y-6">
+      {activeTab === 'roles' ? (
+        <SettingsRoles />
+      ) : (
+        <div className="max-w-2xl space-y-6">
         {/* Team Management */}
-        <div className="card overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-100 bg-slate-50">
-            <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Team Management</h2>
-          </div>
+        <CollapsibleSection title="Team Management">
           <div className="px-6 py-4 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-800">Add, edit, or remove team members</p>
@@ -204,13 +243,10 @@ const Settings = () => {
             </div>
             <Link to="/team" className="btn-secondary whitespace-nowrap">Manage Team</Link>
           </div>
-        </div>
+        </CollapsibleSection>
 
         {/* Dashboard Visibility */}
-        <div className="card overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-100 bg-slate-50">
-            <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Dashboard — Visibility</h2>
-          </div>
+        <CollapsibleSection title="Dashboard - Visibility">
           <div className="px-6">
             <SettingRow
               label="Show Total Projects"
@@ -237,13 +273,10 @@ const Settings = () => {
               onChange={() => toggle('setting_dashCompletionRate', dashCompletionRate, setDashCompletionRate)}
             />
           </div>
-        </div>
+        </CollapsibleSection>
 
         {/* Dashboard Status Summary */}
-        <div className="card overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-100 bg-slate-50">
-            <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Dashboard — Task Statuses</h2>
-          </div>
+        <CollapsibleSection title="Dashboard - Task Statuses">
           <div className="px-6">
             <SettingRow
               label="Show To Do"
@@ -276,13 +309,10 @@ const Settings = () => {
               onChange={() => toggle('setting_dashOverdue', dashOverdue, setDashOverdue)}
             />
           </div>
-        </div>
+        </CollapsibleSection>
 
         {/* Team Visibility */}
-        <div className="card overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-100 bg-slate-50">
-            <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Team Page — Column Visibility</h2>
-          </div>
+        <CollapsibleSection title="Team Page - Column Visibility">
           <div className="px-6">
             <SettingRow
               label="Show Current Task"
@@ -303,13 +333,10 @@ const Settings = () => {
               onChange={() => toggle('setting_showTeamCompleted', showCompleted, setShowCompleted)}
             />
           </div>
-        </div>
+        </CollapsibleSection>
 
         {/* Tasks Visibility */}
-        <div className="card overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-100 bg-slate-50">
-            <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Tasks Page — Column Visibility</h2>
-          </div>
+        <CollapsibleSection title="Tasks Page - Column Visibility">
           <div className="px-6">
             <SettingRow
               label="Show Assignee Column"
@@ -318,13 +345,10 @@ const Settings = () => {
               onChange={() => toggle('setting_showTaskAssignee', showTaskAssignee, setShowTaskAssignee)}
             />
           </div>
-        </div>
+        </CollapsibleSection>
 
         {/* Navigation Menu Visibility */}
-        <div className="card overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-100 bg-slate-50">
-            <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Navigation — Menu Visibility</h2>
-          </div>
+        <CollapsibleSection title="Navigation - Menu Visibility">
           <div className="px-6">
             <SettingRow
               label="Show Dashboard"
@@ -375,10 +399,11 @@ const Settings = () => {
               onChange={() => toggle('setting_nav_teammembers', navTeamMembers, setNavTeamMembers)}
             />
           </div>
-        </div>
+        </CollapsibleSection>
 
         <p className="text-xs text-slate-400 text-center">Changes are saved automatically and applied immediately.</p>
       </div>
+        )}
     </div>
   );
 };
