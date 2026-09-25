@@ -79,6 +79,11 @@ export const getObservationsList = async () => {
   return response.data;
 };
 
+export const getObservationTags = async () => {
+  const response = await api.get('/observations/tags');
+  return response.data;
+};
+
 export const getObservation = async (filename: string) => {
   const response = await api.get(`/observations/${filename}`);
   return response.data;

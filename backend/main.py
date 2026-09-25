@@ -440,6 +440,26 @@ def list_observations():
             })
     return sorted(files, key=lambda x: x["created_at"], reverse=True)
 
+@app.get("/api/observations/tags")
+def list_observation_tags():
+    folder_path = os.path.join(os.getcwd(), "saved_observations")
+    if not os.path.exists(folder_path):
+        return []
+    
+    tags = []
+    import re
+    for f in os.listdir(folder_path):
+        if f.endswith(".html"):
+            try:
+                with open(os.path.join(folder_path, f), "r", encoding="utf-8") as file:
+                    content = file.read()
+                    matches = set(re.findall(r'Observation\s+\d+', content, re.IGNORECASE))
+                    for m in matches:
+                        tags.append({"filename": f, "obs_id": m})
+            except Exception:
+                pass
+    return sorted(tags, key=lambda x: x["filename"])
+
 @app.get("/api/observations/{filename}")
 def get_observation(filename: str):
     file_path = _resolve_observation_path(filename)

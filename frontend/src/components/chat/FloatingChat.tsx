@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquare, X, Send, Users } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { MentionInput } from './MentionInput';
 
 const WS_BASE = 'ws://localhost:8000/ws/chat';
@@ -60,10 +61,26 @@ const FloatingChat = () => {
   }, [open, messages]);
 
   const renderMessageContent = (content: string) => {
-    const parts = content.split(/(@\w+)/g);
+    const parts = content.split(/(@\w+|#obs:[\w\s.-]+\.html\/Observation\s\d+)/g);
     return parts.map((part, i) => {
       if (part.startsWith('@')) {
         return <span key={i} className="text-indigo-600 font-bold bg-indigo-50 px-1 rounded">{part}</span>;
+      }
+      if (part.startsWith('#obs:')) {
+        const fullTag = part.substring(5);
+        const slashIndex = fullTag.lastIndexOf('/');
+        const filename = fullTag.substring(0, slashIndex);
+        const obsId = fullTag.substring(slashIndex + 1);
+        const displayName = filename.replace(/_proj\d+\.html/, '');
+        return (
+          <Link 
+            key={i} 
+            to={`/observations?doc=${encodeURIComponent(filename)}&obs=${encodeURIComponent(obsId)}`}
+            className="text-emerald-600 font-bold bg-emerald-50 px-1 rounded hover:underline inline-flex items-center gap-1"
+          >
+            #{displayName} <span className="opacity-75 text-[10px]">({obsId})</span>
+          </Link>
+        );
       }
       return part;
     });
