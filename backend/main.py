@@ -247,14 +247,15 @@ def save_observation(doc: ObservationDoc, db: Session = Depends(get_db)):
     with open(file_path, "w", encoding="utf-8") as f:
         # Save as a basic HTML file so images and formatting remain intact
         f.write(f"<html><head><title>{doc.title}</title><meta charset='utf-8'></head><body>\n")
-        f.write(f"<h1>{doc.title}</h1>\n")
         f.write(doc.content)
         f.write("\n</body></html>")
         
     # Extract Tags and Auto-Create Tasks
-    content = doc.content
     import re
-    parts = re.split(r'<[^>]*>📌\s*(Observation\s*\d+)</[^>]*>', content)
+    # Remove the inner delete button span first so the regex works cleanly
+    clean_content = re.sub(r'<span[^>]*delete-obs-btn[^>]*>.*?</span>', '', doc.content, flags=re.IGNORECASE | re.DOTALL)
+    
+    parts = re.split(r'<[^>]*>📌\s*(Observation\s*\d+)</[^>]*>', clean_content, flags=re.IGNORECASE)
     
     tasks_created = 0
     if len(parts) > 1:
@@ -263,20 +264,47 @@ def save_observation(doc: ObservationDoc, db: Session = Depends(get_db)):
             obs_html = parts[i+1].replace('<br/>', '').strip() if i+1 < len(parts) else ""
             
             if obs_title:
-                new_task = models.Task(
-                    title=f"{doc.title} - {obs_title}",
-                    description=obs_html,
-                    project_id=doc.project_id,
-                    priority="HIGH",
-                    status="TODO",
-                    task_type="QA_OBSERVATION",
-                    dev_status="PENDING",
-                    qa_status="PENDING",
-                    support_status="PENDING",
-                    qa_document_filename=filename
-                )
-                db.add(new_task)
-                tasks_created += 1
+                # Clean up the document title so it doesn't include .html in the Task view
+                clean_doc_title = re.sub(r'_proj\d+\.html$', '', doc.title, flags=re.IGNORECASE)
+                clean_doc_title = re.sub(r'\.html$', '', clean_doc_title, flags=re.IGNORECASE)
+                clean_doc_title = re.sub(r'html$', '', clean_doc_title, flags=re.IGNORECASE).strip()
+                
+                # Extract the first line of text after the tag to use as the specific issue heading
+                raw_text = re.sub(r'<[^>]+>', ' ', obs_html)
+                raw_text = raw_text.replace('&nbsp;', ' ').strip()
+                lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
+                custom_heading = lines[0][:60] if lines else ""
+                
+                if custom_heading:
+                    task_title = f"{obs_title}: {custom_heading}"
+                else:
+                    task_title = obs_title
+                
+                # Check if this specific observation task already exists for this document to prevent duplicates
+                # We check using the qa_document_filename and ensuring the title starts with the observation ID
+                existing_task = db.query(models.Task).filter(
+                    models.Task.qa_document_filename == filename,
+                    models.Task.title.startswith(obs_title)
+                ).first()
+                
+                if existing_task:
+                    existing_task.title = task_title # Update title in case they fixed a typo in the heading
+                    existing_task.description = obs_html
+                else:
+                    new_task = models.Task(
+                        title=task_title,
+                        description=obs_html,
+                        project_id=doc.project_id,
+                        priority="HIGH",
+                        status="TODO",
+                        task_type="QA_OBSERVATION",
+                        dev_status="PENDING",
+                        qa_status="PENDING",
+                        support_status="PENDING",
+                        qa_document_filename=filename
+                    )
+                    db.add(new_task)
+                    tasks_created += 1
         db.commit()
         
     return {"detail": "Saved successfully", "filename": filename, "tasks_created": tasks_created}
@@ -296,6 +324,24 @@ def delete_observation(filename: str):
         os.remove(file_path)
         return {"detail": "File deleted"}
     raise HTTPException(status_code=404, detail="File not found")
+
+@app.put("/api/observations/{filename}/rename")
+def rename_observation(filename: str, payload: dict):
+    new_name = payload.get("new_name")
+    if not new_name:
+        raise HTTPException(status_code=400, detail="new_name is required")
+        
+    old_file_path = _resolve_observation_path(filename)
+    new_file_path = _resolve_observation_path(new_name)
+    
+    if not os.path.exists(old_file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+        
+    if os.path.exists(new_file_path):
+        raise HTTPException(status_code=400, detail="A file with that name already exists")
+        
+    os.rename(old_file_path, new_file_path)
+    return {"detail": "File renamed successfully", "new_filename": new_name}
 
 from fastapi import File, UploadFile
 import mammoth

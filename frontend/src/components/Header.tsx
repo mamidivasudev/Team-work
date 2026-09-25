@@ -78,7 +78,7 @@ const Header = () => {
   return (
     <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 md:px-8 shrink-0 z-10 relative">
       <div className="flex items-center">
-        <h1 className="text-xl font-bold text-slate-900 tracking-tight">{getPageTitle()}</h1>
+        {/* Page title removed — each page renders its own heading */}
       </div>
       <div className="flex items-center gap-4 relative">
         <GlobalSearch />

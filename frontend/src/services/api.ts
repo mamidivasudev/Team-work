@@ -89,6 +89,11 @@ export const deleteObservationFile = async (filename: string) => {
   return response.data;
 };
 
+export const renameObservationFile = async (oldFilename: string, newFilename: string) => {
+  const response = await api.put(`/observations/${oldFilename}/rename`, { new_name: newFilename });
+  return response.data;
+};
+
 export const uploadObservationFile = async (file: File) => {
   const formData = new FormData();
   formData.append('file', file);

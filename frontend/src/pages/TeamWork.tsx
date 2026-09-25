@@ -20,6 +20,7 @@ const TeamWork = () => {
       setTeam([...t].sort((a, b) => a.name.localeCompare(b.name)));
       setTasks(tk);
       setProjects(p);
+      if (p.length === 1) setSelectedProjectId(p[0].id.toString());
       setLoading(false);
     });
   }, []);

@@ -5,7 +5,7 @@ import {
   getTaskComments, addTaskComment, getTags
 } from '../services/api';
 import type { Task, Project, TeamMember, TaskComment, Tag } from '../types';
-import { Plus, ClipboardList, X, Send, MessageSquare, List, LayoutGrid, Calendar as CalendarIcon } from 'lucide-react';
+import { Plus, ClipboardList, X, Send, MessageSquare, List, LayoutGrid, Calendar as CalendarIcon, Trash2, UserPlus } from 'lucide-react';
 import { resolveQaDocFilename } from '../utils/qaDocument';
 import TaskListView from '../components/tasks/TaskListView';
 import KanbanBoard from '../components/tasks/KanbanBoard';
@@ -82,7 +82,10 @@ const Tasks = () => {
   const isAdmin = localStorage.getItem('isAdmin') === 'true';
 
   useEffect(() => {
-    getProjects().then(setProjects);
+    getProjects().then(p => {
+      setProjects(p);
+      if (p.length === 1) setSelectedProjectId(p[0].id.toString());
+    });
     getTeam().then(setTeamMembers);
     getTags().then(setAllTags);
     fetchTasks();
@@ -160,7 +163,12 @@ const Tasks = () => {
   const handleOpenTask = (task: Task) => {
     if (task.task_type === 'QA_OBSERVATION') {
       const filename = resolveQaDocFilename(task);
-      navigate(`/observations?doc=${encodeURIComponent(filename)}`);
+      
+      // Attempt to extract 'Observation X' from the task title so we can scroll to it
+      const match = task.title.match(/(Observation\s+\d+)/i);
+      const obsParam = match ? `&obs=${encodeURIComponent(match[1])}` : '';
+      
+      navigate(`/observations?doc=${encodeURIComponent(filename)}${obsParam}`);
     } else {
       openEditModal(task);
     }
@@ -241,7 +249,18 @@ const Tasks = () => {
   const anyFilterActive = filterAssignee || filterPriority || filterStatus || filterDate;
   const clearFilters = () => { setFilterAssignee(''); setFilterPriority(''); setFilterStatus(''); setFilterDate(''); };
 
+  const [selectedTaskIds, setSelectedTaskIds] = useState<number[]>([]);
   const projectTasksForRelationships = tasks.filter(t => t.project_id.toString() === taskForm.project_id);
+
+  const handleBulkDelete = async () => {
+    if (window.confirm(`Are you sure you want to delete ${selectedTaskIds.length} tasks?`)) {
+      for (const id of selectedTaskIds) {
+        await deleteTask(id);
+      }
+      setSelectedTaskIds([]);
+      fetchTasks();
+    }
+  };
 
   return (
     <div>
@@ -251,6 +270,15 @@ const Tasks = () => {
           <p className="page-subtitle">{filteredTasks.length} task{filteredTasks.length !== 1 ? 's' : ''} {anyFilterActive || showSelfAssigned ? 'matching filters' : 'total'}</p>
         </div>
         <div className="flex gap-2 flex-wrap justify-end items-center">
+          {selectedTaskIds.length > 0 && isAdmin && (
+            <button
+              onClick={handleBulkDelete}
+              className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center gap-1.5"
+            >
+              <Trash2 size={16} />
+              Delete Selected ({selectedTaskIds.length})
+            </button>
+          )}
           <div className="flex border border-slate-300 rounded-lg overflow-hidden bg-white">
             {([['list', List], ['board', LayoutGrid], ['calendar', CalendarIcon]] as [ViewMode, typeof List][]).map(([mode, Icon]) => (
               <button
@@ -320,10 +348,29 @@ const Tasks = () => {
           setFilterDate={setFilterDate}
           onClearFilters={clearFilters}
           onOpenTask={handleOpenTask}
+          onEditTask={openEditModal}
+          onEditProjectMembers={(projectId) => {
+            const p = projects.find(proj => proj.id === projectId);
+            if (p) {
+              setEditingProjectMembers(p);
+              setSelectedProjectMembers(p.members?.map(m => m.id) || []);
+            }
+          }}
           onDelete={handleDelete}
           onStatusChange={handleStatusChange}
           onPriorityChange={handlePriorityChange}
           onAssigneeChange={handleAssigneeChange}
+          selectedTaskIds={selectedTaskIds}
+          onSelectTask={(id) => {
+            setSelectedTaskIds(prev => prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]);
+          }}
+          onSelectAll={() => {
+            if (selectedTaskIds.length === filteredTasks.length) {
+              setSelectedTaskIds([]);
+            } else {
+              setSelectedTaskIds(filteredTasks.map(t => t.id));
+            }
+          }}
         />
       )}
       {viewMode === 'board' && (
@@ -684,39 +731,91 @@ const Tasks = () => {
             className="modal-panel p-6 max-w-sm max-h-[95vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-xl font-bold mb-5 text-slate-900">Add Team to Project</h2>
-            <div className="max-h-64 overflow-y-auto border border-slate-300 rounded-lg p-2 space-y-1 mb-4">
-              {teamMembers.map(m => (
-                <label key={m.id} className="flex items-center gap-2 px-2 py-1 hover:bg-slate-50 rounded cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="rounded border-slate-300 text-indigo-600"
-                    checked={selectedProjectMembers.includes(m.id)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedProjectMembers([...selectedProjectMembers, m.id]);
-                      } else {
-                        setSelectedProjectMembers(selectedProjectMembers.filter(id => id !== m.id));
-                      }
-                    }}
-                  />
-                  <span className="text-sm">{m.name}</span>
-                </label>
-              ))}
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-slate-900">
+                Add Team to: <span className="text-indigo-600">{editingProjectMembers.name}</span>
+              </h2>
+              <button
+                onClick={() => { setEditingProjectMembers(null); navigate('/team'); }}
+                className="flex items-center gap-1 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1.5 rounded-lg transition-colors"
+                title="Create a new team member"
+              >
+                <UserPlus size={13} /> New Member
+              </button>
             </div>
+
+            {teamMembers.length === 0 ? (
+              // No team members exist at all — guide user to create some first
+              <div className="flex flex-col items-center text-center py-6 px-4 bg-amber-50 border border-amber-200 rounded-xl mb-4">
+                <span className="text-3xl mb-3">👥</span>
+                <p className="text-sm font-semibold text-amber-800 mb-1">No team members yet</p>
+                <p className="text-xs text-amber-600 mb-4">You need to add team members before you can assign them to a project.</p>
+                <button
+                  onClick={() => {
+                    setEditingProjectMembers(null);
+                    navigate('/team');
+                  }}
+                  className="btn-primary text-xs px-4 py-2"
+                >
+                  Go to Team Members →
+                </button>
+              </div>
+            ) : (
+              <>
+                {/* Select All row — sits above the list box */}
+                <div className="flex items-center justify-between mb-1.5 px-1">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      className="rounded border-slate-300 accent-indigo-600"
+                      checked={selectedProjectMembers.length === teamMembers.length && teamMembers.length > 0}
+                      onChange={(e) => setSelectedProjectMembers(e.target.checked ? teamMembers.map(m => m.id) : [])}
+                    />
+                    <span className="text-xs font-semibold text-slate-500">Select All</span>
+                  </label>
+                  <span className="text-xs text-slate-400">{selectedProjectMembers.length} / {teamMembers.length} selected</span>
+                </div>
+
+                {/* Member list */}
+                <div className="max-h-64 overflow-y-auto border border-slate-300 rounded-lg p-2 space-y-1 mb-4">
+                  {teamMembers.map(m => (
+                    <label key={m.id} className="flex items-center gap-2 px-2 py-1.5 hover:bg-slate-50 rounded cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="rounded border-slate-300 text-indigo-600 accent-indigo-600"
+                        checked={selectedProjectMembers.includes(m.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedProjectMembers([...selectedProjectMembers, m.id]);
+                          } else {
+                            setSelectedProjectMembers(selectedProjectMembers.filter(id => id !== m.id));
+                          }
+                        }}
+                      />
+                      <span className="text-sm font-medium text-slate-800">{m.name}</span>
+                      <span className="text-xs text-slate-400 ml-auto">{m.role}</span>
+                    </label>
+                  ))}
+                </div>
+              </>
+            )}
+
             <div className="flex justify-end gap-3">
               <button onClick={() => setEditingProjectMembers(null)} className="btn-secondary">Cancel</button>
-              <button
-                onClick={async () => {
-                  await updateProject(editingProjectMembers.id, { member_ids: selectedProjectMembers });
-                  const updatedProjects = await getProjects();
-                  setProjects(updatedProjects);
-                  setEditingProjectMembers(null);
-                }}
-                className="btn-primary"
-              >
-                Save Members
-              </button>
+              {teamMembers.length > 0 && (
+                <button
+                  onClick={async () => {
+                    await updateProject(editingProjectMembers.id, { member_ids: selectedProjectMembers });
+                    const updatedProjects = await getProjects();
+                    setProjects(updatedProjects);
+                    fetchTasks();
+                    setEditingProjectMembers(null);
+                  }}
+                  className="btn-primary"
+                >
+                  Save Members
+                </button>
+              )}
             </div>
           </div>
         </div>

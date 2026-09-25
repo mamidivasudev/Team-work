@@ -1,4 +1,4 @@
-import { ClipboardList, Edit2, Trash2, Eye, CalendarClock } from 'lucide-react';
+import { ClipboardList, Edit2, Trash2, Eye, CalendarClock, FileText } from 'lucide-react';
 import type { Task, Project, TeamMember } from '../../types';
 import { priorityStyles, statusStyles, statusLabels, isOverdue } from './taskStyles';
 
@@ -20,25 +20,39 @@ interface TaskListViewProps {
   setFilterDate: (v: string) => void;
   onClearFilters: () => void;
   onOpenTask: (task: Task) => void;
+  onEditTask?: (task: Task) => void;
+  onEditProjectMembers?: (projectId: number) => void;
   onDelete: (id: number) => void;
   onStatusChange: (taskId: number, status: string) => void;
   onPriorityChange: (taskId: number, priority: string) => void;
   onAssigneeChange: (taskId: number, assigneeIds: number[]) => void;
+  selectedTaskIds?: number[];
+  onSelectTask?: (id: number) => void;
+  onSelectAll?: () => void;
 }
 
 const TaskListView = ({
   tasks, projects, teamMembers, showAssignee, isAdmin, anyFilterActive, showSelfAssigned,
   filterAssignee, setFilterAssignee, filterPriority, setFilterPriority,
   filterStatus, setFilterStatus, filterDate, setFilterDate, onClearFilters,
-  onOpenTask, onDelete, onStatusChange, onPriorityChange, onAssigneeChange
+  onOpenTask, onEditTask, onEditProjectMembers, onDelete, onStatusChange, onPriorityChange, onAssigneeChange,
+  selectedTaskIds = [], onSelectTask, onSelectAll
 }: TaskListViewProps) => {
   const getProjectName = (id: number) => projects.find(p => p.id === id)?.name || '—';
 
   return (
-    <div className="card overflow-hidden overflow-x-auto">
+    <div className="card overflow-hidden">
       <table className="w-full divide-y divide-slate-100">
         <thead className="bg-slate-50">
           <tr>
+            <th className="px-4 py-3 text-left w-10">
+              <input 
+                type="checkbox" 
+                className="accent-indigo-600 cursor-pointer w-4 h-4 rounded border-slate-300"
+                checked={tasks.length > 0 && selectedTaskIds.length === tasks.length}
+                onChange={() => onSelectAll && onSelectAll()}
+              />
+            </th>
             <th className="th w-[25%]">Title</th>
             <th className="th w-[15%]">Project</th>
             {showAssignee && (
@@ -112,7 +126,7 @@ const TaskListView = ({
         <tbody className="bg-white divide-y divide-slate-100">
           {tasks.length === 0 ? (
             <tr>
-              <td colSpan={showAssignee ? 8 : 7} className="px-6 py-16 text-center text-slate-400">
+              <td colSpan={showAssignee ? 9 : 8} className="px-6 py-16 text-center text-slate-400">
                 <ClipboardList size={36} className="mx-auto mb-3 text-slate-300" />
                 <p className="font-medium text-sm">
                   {anyFilterActive ? 'No tasks match the selected filters' : showSelfAssigned ? 'No tasks assigned to you' : 'No tasks yet — create one to get started'}
@@ -127,15 +141,37 @@ const TaskListView = ({
           ) : (
             tasks.map(t => (
               <tr key={t.id} className="hover:bg-slate-50 transition-colors">
+                <td className="px-4 py-2">
+                  <input 
+                    type="checkbox" 
+                    className="accent-indigo-600 cursor-pointer w-4 h-4 rounded border-slate-300"
+                    checked={selectedTaskIds.includes(t.id)}
+                    onChange={() => onSelectTask && onSelectTask(t.id)}
+                  />
+                </td>
                 <td className="px-4 py-2 cursor-pointer group" onClick={() => onOpenTask(t)}>
-                  <div className="text-sm font-medium text-slate-900 group-hover:text-indigo-600 group-hover:underline flex items-center gap-1.5">
-                    {t.title}
+                  <div className="flex flex-col group-hover:text-indigo-600 group-hover:underline" title={t.title}>
+                    {t.title.startsWith('Observation ') && t.title.includes(': ') ? (
+                      <>
+                        <span className="text-xs font-bold text-indigo-500 mb-0.5 whitespace-nowrap">{t.title.split(': ')[0]}</span>
+                        <span className="text-sm font-medium text-slate-900 truncate max-w-[250px]">{t.title.split(': ').slice(1).join(': ')}</span>
+                      </>
+                    ) : (
+                      <span className="text-sm font-medium text-slate-900 truncate max-w-[250px]">{t.title}</span>
+                    )}
                   </div>
                   {(t.description || (t.tags && t.tags.length > 0)) && (
                     <div className="flex items-center gap-1.5 mt-0.5">
                       {t.description && (
-                        <div className="text-xs text-slate-400 max-w-[160px] truncate">
-                          {t.task_type === 'QA_OBSERVATION' ? 'Click to view full document...' : t.description}
+                        <div className="text-xs text-slate-400 max-w-[200px] truncate flex items-center gap-1" title={t.task_type === 'QA_OBSERVATION' ? t.qa_document_filename : undefined}>
+                          {t.task_type === 'QA_OBSERVATION' 
+                            ? (
+                                <>
+                                  <FileText size={12} className="text-slate-400 shrink-0" />
+                                  {t.qa_document_filename ? t.qa_document_filename.replace(/_proj\d+\.html$/, '').replace(/\.html$/, '').replace(/html$/i, '').trim() : 'Document'}
+                                </>
+                              )
+                            : t.description}
                         </div>
                       )}
                       {t.tags?.map(tag => (
@@ -150,19 +186,45 @@ const TaskListView = ({
                 {showAssignee && (
                   <td className="px-4 py-2 whitespace-nowrap text-sm">
                     {isAdmin ? (
-                      <select
-                        value={t.assignees && t.assignees.length > 0 ? t.assignees[0].id.toString() : ""}
-                        onChange={(e) => {
-                          const selectedId = e.target.value;
-                          onAssigneeChange(t.id, selectedId ? [parseInt(selectedId)] : []);
-                        }}
-                        className="bg-transparent border-0 text-sm font-medium text-slate-700 cursor-pointer outline-none hover:bg-slate-100 rounded px-2 py-1 max-w-[120px]"
-                      >
-                        <option value="">Unassigned</option>
-                        {(projects.find(p => p.id === t.project_id)?.members || []).map(m => (
-                          <option key={m.id} value={m.id}>{m.name}</option>
-                        ))}
-                      </select>
+                      (() => {
+                        const projectMembers = projects.find(p => p.id === t.project_id)?.members || [];
+                        if (projectMembers.length === 0) {
+                          return (
+                            <span 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (onEditProjectMembers) {
+                                  onEditProjectMembers(t.project_id);
+                                }
+                              }}
+                              className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1 rounded-md font-medium whitespace-nowrap cursor-pointer hover:bg-amber-100 transition-colors inline-block"
+                              title="Click to add team members to this project"
+                            >
+                              ⚠ No team assigned
+                            </span>
+                          );
+                        }
+                        const isUnassigned = !t.assignees || t.assignees.length === 0;
+                        return (
+                          <select
+                            value={isUnassigned ? "" : t.assignees[0].id.toString()}
+                            onChange={(e) => {
+                              const selectedId = e.target.value;
+                              onAssigneeChange(t.id, selectedId ? [parseInt(selectedId)] : []);
+                            }}
+                            className={`border rounded-md text-sm cursor-pointer outline-none px-2 py-1 max-w-[130px] transition-colors ${
+                              isUnassigned
+                                ? 'border-dashed border-orange-300 text-orange-500 italic bg-orange-50 hover:bg-orange-100'
+                                : 'border-0 bg-transparent font-medium text-slate-700 hover:bg-slate-50'
+                            }`}
+                          >
+                            <option value="">— Unassigned —</option>
+                            {projectMembers.map(m => (
+                              <option key={m.id} value={m.id}>{m.name}</option>
+                            ))}
+                          </select>
+                        );
+                      })()
                     ) : (
                       t.assignees && t.assignees.length > 0 ? (
                         <div className="flex -space-x-1.5 cursor-pointer" onClick={() => onOpenTask(t)}>
@@ -212,7 +274,13 @@ const TaskListView = ({
                   <select
                     value={t.status}
                     onChange={(e) => onStatusChange(t.id, e.target.value)}
-                    className={`border-0 rounded-full text-xs font-medium px-2 py-1 cursor-pointer outline-none ${statusStyles[t.status] || 'bg-slate-100 text-slate-700'}`}
+                    disabled={!t.assignees || t.assignees.length === 0}
+                    title={(!t.assignees || t.assignees.length === 0) ? "Please assign a team member before changing the status" : ""}
+                    className={`border-0 rounded-full text-xs font-medium px-2 py-1 outline-none ${
+                      (!t.assignees || t.assignees.length === 0) 
+                        ? 'bg-slate-50 text-slate-400 cursor-not-allowed opacity-70' 
+                        : `cursor-pointer ${statusStyles[t.status] || 'bg-slate-100 text-slate-700'}`
+                    }`}
                   >
                     <option value="TODO">{statusLabels.TODO}</option>
                     <option value="IN_PROGRESS">{statusLabels.IN_PROGRESS}</option>
@@ -237,11 +305,11 @@ const TaskListView = ({
                 <td className="px-4 py-2 whitespace-nowrap text-right sticky right-0 bg-white">
                   {isAdmin ? (
                     <>
-                      <button onClick={() => onOpenTask(t)} className="text-indigo-500 hover:bg-indigo-50 p-1.5 rounded-lg mr-1 transition-colors" title="Edit"><Edit2 size={15} /></button>
-                      <button onClick={() => onDelete(t.id)} className="text-red-400 hover:bg-red-50 p-1.5 rounded-lg transition-colors" title="Delete"><Trash2 size={15} /></button>
+                      <button onClick={(e) => { e.stopPropagation(); (onEditTask || onOpenTask)(t); }} className="text-indigo-500 hover:bg-indigo-50 p-1.5 rounded-lg mr-1 transition-colors" title="Edit Task Details"><Edit2 size={15} /></button>
+                      <button onClick={(e) => { e.stopPropagation(); onDelete(t.id); }} className="text-red-400 hover:bg-red-50 p-1.5 rounded-lg transition-colors" title="Delete Task"><Trash2 size={15} /></button>
                     </>
                   ) : (
-                    <button onClick={() => onOpenTask(t)} className="text-slate-500 hover:bg-slate-100 p-1.5 rounded-lg transition-colors" title="View details"><Eye size={15} /></button>
+                    <button onClick={(e) => { e.stopPropagation(); (onEditTask || onOpenTask)(t); }} className="text-slate-500 hover:bg-slate-100 p-1.5 rounded-lg transition-colors" title="View details"><Eye size={15} /></button>
                   )}
                 </td>
               </tr>

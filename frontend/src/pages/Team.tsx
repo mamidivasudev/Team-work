@@ -7,6 +7,7 @@ const Team = () => {
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>('all');
+  const [selectedMemberIds, setSelectedMemberIds] = useState<number[]>([]);
 
   const [showModal, setShowModal] = useState(false);
   const [editingMemberId, setEditingMemberId] = useState<number | null>(null);
@@ -22,7 +23,10 @@ const Team = () => {
   const [showCurrentTask, setShowCurrentTask] = useState(true);
 
   useEffect(() => {
-    getProjects().then(setProjects);
+    getProjects().then(p => {
+      setProjects(p);
+      if (p.length === 1) setSelectedProjectId(p[0].id.toString());
+    });
     fetchTeam();
 
     const savedAssigned = localStorage.getItem('setting_showTeamAssigned');
@@ -31,6 +35,14 @@ const Team = () => {
     if (savedAssigned !== null) setShowAssigned(savedAssigned === 'true');
     if (savedCompleted !== null) setShowCompleted(savedCompleted === 'true');
     if (savedCurrentTask !== null) setShowCurrentTask(savedCurrentTask === 'true');
+
+    // Re-fetch whenever the user navigates back to this tab (e.g. after adding members from Tasks page)
+    const handleFocus = () => {
+      fetchTeam();
+      getProjects().then(setProjects);
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
   }, []);
 
   const fetchTeam = () => getTeam().then(setTeam);
@@ -91,6 +103,17 @@ const Team = () => {
     fetchTeam();
   };
 
+  // Bulk delete selected members
+  const handleBulkDelete = async () => {
+    if (selectedMemberIds.length === 0) return;
+    if (!window.confirm(`Delete ${selectedMemberIds.length} member(s)? This cannot be undone.`)) return;
+    for (const id of selectedMemberIds) {
+      await deleteTeamMember(id);
+    }
+    setSelectedMemberIds([]);
+    fetchTeam();
+  };
+
   const filteredTeam = selectedProjectId === 'all'
     ? team
     : team.filter(m =>
@@ -98,6 +121,7 @@ const Team = () => {
         m.project_ids?.includes(parseInt(selectedProjectId))
       );
 
+  const allSelected = filteredTeam.length > 0 && selectedMemberIds.length === filteredTeam.length;
   const avatarColors = ['bg-blue-500', 'bg-purple-500', 'bg-green-500', 'bg-orange-500', 'bg-pink-500', 'bg-teal-500'];
 
   return (
@@ -107,7 +131,15 @@ const Team = () => {
           <h1 className="page-title">Team</h1>
           <p className="page-subtitle">{filteredTeam.length} member{filteredTeam.length !== 1 ? 's' : ''}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          {selectedMemberIds.length > 0 && (
+            <button
+              onClick={handleBulkDelete}
+              className="flex items-center gap-1.5 bg-red-600 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+            >
+              <Trash2 size={15} /> Delete Selected ({selectedMemberIds.length})
+            </button>
+          )}
           <select
             className="input bg-white w-auto"
             value={selectedProjectId}
@@ -135,6 +167,15 @@ const Team = () => {
           <table className="min-w-full divide-y divide-slate-100">
             <thead className="bg-slate-50">
               <tr>
+                <th className="px-4 py-3 w-10 text-center">
+                  <input
+                    type="checkbox"
+                    className="accent-indigo-600 cursor-pointer w-4 h-4 rounded border-slate-300"
+                    checked={allSelected}
+                    onChange={(e) => setSelectedMemberIds(e.target.checked ? filteredTeam.map(m => m.id) : [])}
+                    title="Select all"
+                  />
+                </th>
                 <th className="th">Team Member</th>
                 <th className="th">Role</th>
                 {showCurrentTask && <th className="th">Current Task</th>}
@@ -145,7 +186,17 @@ const Team = () => {
             </thead>
             <tbody className="bg-white divide-y divide-slate-100">
               {filteredTeam.map((m, idx) => (
-                <tr key={m.id} className="hover:bg-slate-50 transition-colors">
+                <tr key={m.id} className={`hover:bg-slate-50 transition-colors ${selectedMemberIds.includes(m.id) ? 'bg-indigo-50/40' : ''}`}>
+                  <td className="px-4 py-4 text-center">
+                    <input
+                      type="checkbox"
+                      className="accent-indigo-600 cursor-pointer w-4 h-4 rounded border-slate-300"
+                      checked={selectedMemberIds.includes(m.id)}
+                      onChange={() => setSelectedMemberIds(prev =>
+                        prev.includes(m.id) ? prev.filter(id => id !== m.id) : [...prev, m.id]
+                      )}
+                    />
+                  </td>
                   <td className="px-4 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-3">
                       <div className={`flex-shrink-0 h-9 w-9 ${avatarColors[idx % avatarColors.length]} rounded-full flex items-center justify-center text-white font-bold text-sm`}>
@@ -203,7 +254,7 @@ const Team = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="text-xl font-bold mb-5 text-slate-900">{editingMemberId ? 'Edit Team Member' : 'Add Team Member'}</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
               <div>
                 <label className="label">Full Name</label>
                 <input
@@ -213,6 +264,7 @@ const Team = () => {
                   className="input"
                   placeholder="e.g. John Smith"
                   required
+                  autoComplete="off"
                 />
               </div>
               <div>
@@ -263,6 +315,7 @@ const Team = () => {
                       onChange={e => setMemberForm({ ...memberForm, username: e.target.value })}
                       className="input"
                       placeholder="username"
+                      autoComplete="off"
                     />
                   </div>
                   <div>
@@ -273,7 +326,10 @@ const Team = () => {
                         value={memberForm.password || ''}
                         onChange={e => setMemberForm({ ...memberForm, password: e.target.value })}
                         className="input pr-9"
-                        placeholder={editingMemberId ? '(unchanged)' : 'password'}
+                        placeholder={editingMemberId ? '(unchanged)' : 'e.g. 123456'}
+                        autoComplete="new-password"
+                        data-lpignore="true"
+                        data-1p-ignore="true"
                       />
                       <button
                         type="button"

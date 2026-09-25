@@ -1,24 +1,62 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, ListChecks, Users, FolderKanban, CheckSquare, FileText, BarChart3, Bell, Settings } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { LayoutDashboard, ListChecks, Users, FolderKanban, CheckSquare, FileText, BarChart3, Bell, Settings, UserCog } from 'lucide-react';
+
+const NAV_KEYS: Record<string, string> = {
+  'Dashboard':       'setting_nav_dashboard',
+  'My Work':         'setting_nav_mywork',
+  'Team Work':       'setting_nav_teamwork',
+  'Projects':        'setting_nav_projects',
+  'Tasks':           'setting_nav_tasks',
+  'QA Observations': 'setting_nav_qaobservations',
+  'Reports':         'setting_nav_reports',
+  'Notifications':   'setting_nav_notifications',
+  'Team Members':    'setting_nav_teammembers',
+};
+
+const readNavSettings = () => {
+  const result: Record<string, boolean> = {};
+  Object.entries(NAV_KEYS).forEach(([name, key]) => {
+    const val = localStorage.getItem(key);
+    result[name] = val === null ? true : val === 'true'; // default ON
+  });
+  return result;
+};
 
 const Sidebar = () => {
   const isAdmin = localStorage.getItem('isAdmin') === 'true';
   const userName = localStorage.getItem('userName') || '';
+  const [navVisible, setNavVisible] = useState<Record<string, boolean>>(readNavSettings);
 
-  const navItems = [
-    { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-    { name: 'My Work', path: '/my-work', icon: ListChecks },
-    { name: 'Team Work', path: '/team-work', icon: Users },
-    { name: 'Projects', path: '/projects', icon: FolderKanban },
-    { name: 'Tasks', path: '/tasks', icon: CheckSquare },
-    { name: 'QA Observations', path: '/observations', icon: FileText },
-    { name: 'Reports', path: '/reports', icon: BarChart3 },
-    { name: 'Notifications', path: '/notifications', icon: Bell },
+  useEffect(() => {
+    const handler = () => setNavVisible(readNavSettings());
+    window.addEventListener('settings_updated', handler);
+    return () => window.removeEventListener('settings_updated', handler);
+  }, []);
+
+  let allNavItems = [
+    { name: 'Dashboard',       path: '/',              icon: LayoutDashboard },
+    { name: 'Projects',        path: '/projects',      icon: FolderKanban },
+    { name: 'QA Observations', path: '/observations',  icon: FileText },
+    { name: 'Tasks',           path: '/tasks',         icon: CheckSquare },
+    { name: 'Team Members',    path: '/team',          icon: UserCog },
+    { name: 'Reports',         path: '/reports',       icon: BarChart3 },
+    { name: 'Notifications',   path: '/notifications', icon: Bell },
+    { name: 'Team Work',       path: '/team-work',     icon: Users },
+    { name: 'My Work',         path: '/my-work',       icon: ListChecks },
   ];
 
   if (isAdmin) {
-    navItems.push({ name: 'Settings', path: '/settings', icon: Settings });
+    allNavItems = allNavItems.filter(item => item.name !== 'My Work');
+    allNavItems.push({ name: 'Settings', path: '/settings', icon: Settings });
+  } else {
+    allNavItems = allNavItems.filter(item => item.name !== 'Team Members');
   }
+
+  // Settings is always visible so admin can re-enable things
+  const navItems = allNavItems.filter(item =>
+    item.name === 'Settings' ? true : navVisible[item.name] !== false
+  );
 
   return (
     <div className="w-56 bg-slate-900 h-screen flex flex-col shrink-0">
